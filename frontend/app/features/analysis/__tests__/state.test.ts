@@ -4,14 +4,20 @@ test("team_header event populates teamHeader", () => {
   const event = {
     type: "team_header" as const,
     illinois_rank: 3,
+    illinois_name: "Illinois",
+    illinois_mascot: "Fighting Illini",
     opponent_name: "UConn",
+    opponent_mascot: "Huskies",
     opponent_rank: 1,
     game_context: "Final Four",
   };
   const next = applyEvent(initialStreamState, event);
   expect(next.teamHeader).toEqual({
     illinois_rank: 3,
+    illinois_name: "Illinois",
+    illinois_mascot: "Fighting Illini",
     opponent_name: "UConn",
+    opponent_mascot: "Huskies",
     opponent_rank: 1,
     game_context: "Final Four",
   });

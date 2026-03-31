@@ -68,7 +68,8 @@ def generate_team_header(context: str) -> dict[str, Any]:
     prompt = (
         f"{context}\n\n"
         "Extract team matchup info. Respond with ONLY a JSON object, no other text:\n"
-        '{"illinois_rank": <number or null>, "opponent_name": "<name>", '
+        '{"illinois_rank": <number or null>, "illinois_name": "<school>", "illinois_mascot": "<mascot>", '
+        '"opponent_name": "<school>", "opponent_mascot": "<mascot>", '
         '"opponent_rank": <number or null>, "game_context": "<e.g. Regular Season, Final Four>"}'
     )
     raw = converse_text(prompt, max_tokens=384)
@@ -76,7 +77,10 @@ def generate_team_header(context: str) -> dict[str, Any]:
         raw,
         {
             "illinois_rank": None,
+            "illinois_name": "Illinois",
+            "illinois_mascot": "Fighting Illini",
             "opponent_name": "Opponent",
+            "opponent_mascot": "",
             "opponent_rank": None,
             "game_context": "Illinois Basketball",
         },
@@ -148,8 +152,9 @@ def _merge_team_header(
         if team_header.get(key) is not None:
             merged[key] = team_header[key]
 
-    if team_header.get("opponent_name"):
-        merged["opponent_name"] = team_header["opponent_name"]
+    for key in ("illinois_name", "illinois_mascot", "opponent_name", "opponent_mascot"):
+        if team_header.get(key):
+            merged[key] = team_header[key]
 
     if team_header.get("game_context"):
         merged["game_context"] = team_header["game_context"]
@@ -178,7 +183,10 @@ def run_narrator(
     emit(
         events.team_header(
             header.get("illinois_rank"),
+            str(header.get("illinois_name", "Illinois")),
+            str(header.get("illinois_mascot", "Fighting Illini")),
             str(header.get("opponent_name", "Opponent")),
+            str(header.get("opponent_mascot", "")),
             header.get("opponent_rank"),
             str(header.get("game_context", "Illinois Basketball")),
         )

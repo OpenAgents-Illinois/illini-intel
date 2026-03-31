@@ -7,7 +7,7 @@ import { useAgentStream } from "@/app/features/analysis/hooks/useAgentStream";
 import { initialStreamState } from "@/app/features/analysis/state";
 import { StreamState } from "@/app/features/analysis/types";
 
-const DEFAULT_GOAL = "Analyze Illinois vs UConn Final Four matchup";
+const DEFAULT_GOAL = "Analyze Illinois basketball's upcoming matchup";
 
 export function AnalysisPage() {
   const [goal, setGoal] = useState(DEFAULT_GOAL);

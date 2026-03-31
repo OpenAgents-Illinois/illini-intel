@@ -33,7 +33,11 @@ def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) 
     def fake_fetch_team(team_id: str):
         if team_id == '356':
             return {
-                'team': {'displayName': 'Illinois'},
+                'team': {
+                    'displayName': 'Illinois',
+                    'shortDisplayName': 'Illinois',
+                    'name': 'Fighting Illini',
+                },
                 'nextEvent': [
                     {
                         'competitions': [
@@ -46,23 +50,41 @@ def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) 
                     }
                 ],
             }
-        return {
-            'team': {'displayName': 'UConn'},
-            'nextEvent': [
-                {
-                    'competitions': [
-                        {
-                            'competitors': [
-                                {'team': {'id': '41'}, 'curatedRank': {'current': 2}},
-                            ]
-                        }
-                    ]
+        if team_id == '41':
+            return {
+                'team': {
+                    'displayName': 'UConn Huskies',
+                    'shortDisplayName': 'UConn',
+                    'name': 'Huskies',
+                    'location': 'Connecticut',
                 }
-            ],
+            }
+        return {
+            'team': {'displayName': 'Opponent'},
         }
 
     monkeypatch.setattr(pipeline, 'fetch_team', fake_fetch_team)
-    monkeypatch.setattr(pipeline, 'fetch_schedule', lambda team_id: {'events': [1, 2, 3]})
+    monkeypatch.setattr(
+        pipeline,
+        'fetch_schedule',
+        lambda team_id, season=None: {
+            'events': [
+                {
+                    'name': 'Illinois vs UConn',
+                    'season': {'year': 2024},
+                    'competitions': [
+                        {
+                            'notes': [{'headline': "Men's Basketball Championship - East Region - Elite 8"}],
+                            'competitors': [
+                                {'team': {'id': '356', 'shortDisplayName': 'Illinois', 'name': 'Fighting Illini'}, 'curatedRank': {'current': 3}},
+                                {'team': {'id': '41', 'shortDisplayName': 'UConn', 'name': 'Huskies'}, 'curatedRank': {'current': 2}},
+                            ],
+                        }
+                    ],
+                }
+            ]
+        },
+    )
     monkeypatch.setattr(pipeline, 'fetch_scoreboard', lambda: {'events': [1]})
 
     def fake_converse_text(prompt: str, max_tokens: int = 1024) -> str:
@@ -86,7 +108,15 @@ def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) 
             'Analyze Illinois vs UConn',
             'Scout summary for Illinois.',
             'Analyst sees Illinois spacing advantage.',
-            {'illinois_rank': 3, 'opponent_name': 'UConn', 'opponent_rank': 2},
+            {
+                'illinois_rank': 3,
+                'illinois_name': 'Illinois',
+                'illinois_mascot': 'Fighting Illini',
+                'opponent_name': 'UConn',
+                'opponent_mascot': 'Huskies',
+                'opponent_rank': 2,
+                'game_context': 'Elite 8',
+            },
         )
     ]
     assert any(event['type'] == 'tool_call' and event['tool'] == 'fetch_scoreboard' for event in emitter.events)
@@ -119,9 +149,22 @@ def test_extract_ap_rank_falls_back_to_top_level_rank() -> None:
     assert pipeline._extract_ap_rank(payload, '41') == 7
 
 
+def test_extract_ap_rank_handles_nested_team_rank_strings() -> None:
+    payload = {
+        'team': {'rank': '#13'},
+        'nextEvent': [],
+    }
+
+    assert pipeline._extract_ap_rank(payload, '356') == 13
+
+
 def test_build_team_header_uses_structured_espn_data() -> None:
     illinois = {
-        'team': {'displayName': 'Illinois'},
+        'team': {
+            'displayName': 'Illinois',
+            'shortDisplayName': 'Illinois',
+            'name': 'Fighting Illini',
+        },
         'nextEvent': [
             {
                 'competitions': [
@@ -135,7 +178,12 @@ def test_build_team_header_uses_structured_espn_data() -> None:
         ],
     }
     opponent = {
-        'team': {'displayName': 'UConn'},
+        'team': {
+            'displayName': 'UConn Huskies',
+            'shortDisplayName': 'UConn',
+            'name': 'Huskies',
+            'location': 'Connecticut',
+        },
         'nextEvent': [
             {
                 'competitions': [
@@ -151,6 +199,34 @@ def test_build_team_header_uses_structured_espn_data() -> None:
 
     assert pipeline._build_team_header(illinois, opponent) == {
         'illinois_rank': 3,
+        'illinois_name': 'Illinois',
+        'illinois_mascot': 'Fighting Illini',
         'opponent_name': 'UConn',
+        'opponent_mascot': 'Huskies',
         'opponent_rank': 2,
+        'game_context': None,
+    }
+
+
+def test_build_team_header_uses_matchup_event_context_and_opponent() -> None:
+    matchup_event = {
+        'competitions': [
+            {
+                'notes': [{'headline': "Men's Basketball Championship - East Region - Elite 8"}],
+                'competitors': [
+                    {'team': {'id': '356', 'shortDisplayName': 'Illinois', 'name': 'Fighting Illini'}, 'curatedRank': {'current': 3}},
+                    {'team': {'id': '41', 'shortDisplayName': 'UConn', 'name': 'Huskies'}, 'curatedRank': {'current': 2}},
+                ],
+            }
+        ]
+    }
+
+    assert pipeline._build_team_header({'team': {}}, {'team': {}}, matchup_event) == {
+        'illinois_rank': 3,
+        'illinois_name': 'Illinois',
+        'illinois_mascot': 'Fighting Illini',
+        'opponent_name': 'UConn',
+        'opponent_mascot': 'Huskies',
+        'opponent_rank': 2,
+        'game_context': 'Elite 8',
     }

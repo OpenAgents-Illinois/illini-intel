@@ -29,7 +29,18 @@ export function applyEvent(state: StreamState, event: AgentEvent): StreamState {
     case "prediction":
       return { ...state, prediction: event.content };
     case "team_header":
-      return { ...state, teamHeader: { illinois_rank: event.illinois_rank, opponent_name: event.opponent_name, opponent_rank: event.opponent_rank, game_context: event.game_context } };
+      return {
+        ...state,
+        teamHeader: {
+          illinois_rank: event.illinois_rank,
+          illinois_name: event.illinois_name,
+          illinois_mascot: event.illinois_mascot,
+          opponent_name: event.opponent_name,
+          opponent_mascot: event.opponent_mascot,
+          opponent_rank: event.opponent_rank,
+          game_context: event.game_context,
+        },
+      };
     case "stat_comparison":
       return { ...state, statComparisons: [...state.statComparisons, { label: event.label, illinois_value: event.illinois_value, opponent_value: event.opponent_value, illinois_pct: event.illinois_pct }] };
     case "report_card":

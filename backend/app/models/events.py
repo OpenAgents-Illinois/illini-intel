@@ -29,14 +29,20 @@ def prediction(content: str) -> dict[str, Any]:
 
 def team_header(
     illinois_rank: int | None,
+    illinois_name: str,
+    illinois_mascot: str,
     opponent_name: str,
+    opponent_mascot: str,
     opponent_rank: int | None,
     game_context: str,
 ) -> dict[str, Any]:
     return {
         "type": "team_header",
         "illinois_rank": illinois_rank,
+        "illinois_name": illinois_name,
+        "illinois_mascot": illinois_mascot,
         "opponent_name": opponent_name,
+        "opponent_mascot": opponent_mascot,
         "opponent_rank": opponent_rank,
         "game_context": game_context,
     }

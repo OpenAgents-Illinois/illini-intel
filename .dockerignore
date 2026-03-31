@@ -1,0 +1,28 @@
+.git
+.gitignore
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+backend/.venv
+target
+
+# Env and credentials
+.env
+.env.local
+.env.*.local
+.aws
+
+# Frontend local artifacts
+frontend/node_modules
+frontend/.next
+frontend/.wrangler
+
+# Docs and local metadata not needed for server image build
+docs
+agent-transcripts

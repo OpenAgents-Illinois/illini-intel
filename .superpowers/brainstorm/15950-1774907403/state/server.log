@@ -1,0 +1,6 @@
+{"type":"server-started","port":60332,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:60332","screen_dir":"/Users/anirudh/UIUC/go-mama-27/100-ai-agents/illini-intel/.superpowers/brainstorm/15950-1774907403/content","state_dir":"/Users/anirudh/UIUC/go-mama-27/100-ai-agents/illini-intel/.superpowers/brainstorm/15950-1774907403/state"}
+{"type":"screen-added","file":"/Users/anirudh/UIUC/go-mama-27/100-ai-agents/illini-intel/.superpowers/brainstorm/15950-1774907403/content/dashboard-layout.html"}
+{"type":"screen-added","file":"/Users/anirudh/UIUC/go-mama-27/100-ai-agents/illini-intel/.superpowers/brainstorm/15950-1774907403/content/dashboard-combined.html"}
+{"source":"user-event","type":"click","text":"✓\n    \n      Yes, this is the direction\n      Combined A+B with rankings — let's build it","choice":"yes","id":null,"timestamp":1774907606911}
+{"source":"user-event","type":"click","text":"✓\n    \n      Yes, this is the direction\n      Combined A+B with rankings — let's build it","choice":"yes","id":null,"timestamp":1774907614927}
+{"type":"server-stopped","reason":"idle timeout"}

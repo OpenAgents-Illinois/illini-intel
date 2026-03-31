@@ -1,0 +1,139 @@
+<h2>Illini Intel — Dashboard Layout</h2>
+<p class="subtitle">Which direction should the BI dashboard go? The agent trace stays as a live sidebar in all options.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:#ccc">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1;background:#1a1a2e;border-radius:6px;padding:8px;text-align:center">
+            <div style="font-size:22px;font-weight:bold;color:#ff6b00">87.3</div>
+            <div style="font-size:9px;color:#888">PPG — Illinois</div>
+          </div>
+          <div style="flex:1;background:#1a1a2e;border-radius:6px;padding:8px;text-align:center">
+            <div style="font-size:22px;font-weight:bold;color:#4a9eff">79.1</div>
+            <div style="font-size:9px;color:#888">PPG — UConn</div>
+          </div>
+          <div style="flex:1;background:#1a1a2e;border-radius:6px;padding:8px;text-align:center">
+            <div style="font-size:22px;font-weight:bold;color:#4ade80">+8.2</div>
+            <div style="font-size:9px;color:#888">Edge</div>
+          </div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:6px;padding:8px;margin-bottom:8px">
+          <div style="font-size:9px;color:#888;margin-bottom:6px">SCORING COMPARISON</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:30px;font-size:9px;color:#888">OFF</div>
+              <div style="flex:1;background:#333;border-radius:3px;height:8px"><div style="width:75%;background:#ff6b00;height:100%;border-radius:3px"></div></div>
+              <div style="width:30px;font-size:9px;color:#ff6b00;text-align:right">75%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:30px;font-size:9px;color:#888">DEF</div>
+              <div style="flex:1;background:#333;border-radius:3px;height:8px"><div style="width:60%;background:#4a9eff;height:100%;border-radius:3px"></div></div>
+              <div style="width:30px;font-size:9px;color:#4a9eff;text-align:right">60%</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="width:30px;font-size:9px;color:#888">3PT</div>
+              <div style="flex:1;background:#333;border-radius:3px;height:8px"><div style="width:85%;background:#ff6b00;height:100%;border-radius:3px"></div></div>
+              <div style="width:30px;font-size:9px;color:#ff6b00;text-align:right">85%</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:6px;padding:8px;font-size:9px;color:#aaa;font-style:italic">
+          "Illinois dominates from 3 but faces UConn's elite interior defense..."
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Stats-Forward</h3>
+      <p>Hero numbers at top, horizontal bar charts for key categories, prediction narrative at bottom. Clean, ESPN-analyst feel.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:11px;color:#ccc">
+        <div style="font-size:9px;color:#ff6b00;font-weight:bold;margin-bottom:6px;text-transform:uppercase">MATCHUP BREAKDOWN</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="background:#1a1a2e;border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:#888;margin-bottom:4px">OFFENSE</div>
+            <div style="font-size:16px;font-weight:bold;color:#4ade80">A+</div>
+            <div style="font-size:8px;color:#666">Top 5 NCAA</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:#888;margin-bottom:4px">DEFENSE</div>
+            <div style="font-size:16px;font-weight:bold;color:#facc15">B+</div>
+            <div style="font-size:8px;color:#666">Top 15 NCAA</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:#888;margin-bottom:4px">3PT%</div>
+            <div style="font-size:16px;font-weight:bold;color:#4a9eff">38.4%</div>
+            <div style="font-size:8px;color:#666">vs 31.2 UConn</div>
+          </div>
+          <div style="background:#1a1a2e;border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:#888;margin-bottom:4px">PACE</div>
+            <div style="font-size:16px;font-weight:bold;color:#ff6b00">72.1</div>
+            <div style="font-size:8px;color:#666">Fast vs UConn 67.3</div>
+          </div>
+        </div>
+        <div style="background:#ff6b0015;border:1px solid #ff6b0040;border-radius:6px;padding:6px;font-size:9px;color:#ff6b00;text-align:center;font-weight:bold">
+          ILLINOIS WIN PROBABILITY: 61%
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Report Card Grid</h3>
+      <p>Grade-style cards for each dimension, streaming in as the agent analyzes. Big win probability at the bottom.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111;border-radius:8px;padding:12px;font-size:11px;color:#ccc">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #333">
+          <div style="font-size:14px;font-weight:bold;color:#ff6b00">#3 ILLINOIS</div>
+          <div style="font-size:9px;color:#888">FINAL FOUR</div>
+          <div style="font-size:14px;font-weight:bold;color:#4a9eff">#1 UCONN</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:25px;font-size:9px;color:#ff6b00;text-align:right;font-weight:bold">87.3</div>
+            <div style="flex:1;display:flex;height:10px;border-radius:3px;overflow:hidden">
+              <div style="width:52%;background:#ff6b00"></div>
+              <div style="width:48%;background:#4a9eff"></div>
+            </div>
+            <div style="width:25px;font-size:9px;color:#4a9eff;font-weight:bold">79.1</div>
+            <div style="width:40px;font-size:8px;color:#666">PPG</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:25px;font-size:9px;color:#4a9eff;text-align:right;font-weight:bold">38.4</div>
+            <div style="flex:1;display:flex;height:10px;border-radius:3px;overflow:hidden">
+              <div style="width:44%;background:#ff6b00"></div>
+              <div style="width:56%;background:#4a9eff"></div>
+            </div>
+            <div style="width:25px;font-size:9px;color:#ff6b00;font-weight:bold">42.1</div>
+            <div style="width:40px;font-size:8px;color:#666">REB</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:25px;font-size:9px;color:#ff6b00;text-align:right;font-weight:bold">38.4%</div>
+            <div style="flex:1;display:flex;height:10px;border-radius:3px;overflow:hidden">
+              <div style="width:55%;background:#ff6b00"></div>
+              <div style="width:45%;background:#4a9eff"></div>
+            </div>
+            <div style="width:25px;font-size:9px;color:#4a9eff;font-weight:bold">31.2%</div>
+            <div style="width:40px;font-size:8px;color:#666">3PT%</div>
+          </div>
+        </div>
+        <div style="background:#1a1a2e;border-radius:6px;padding:6px;font-size:9px;color:#aaa">
+          <span style="color:#ff6b00;font-weight:bold">KEY EDGE:</span> Illinois pace advantage — force fast transitions before UConn sets defense
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Head-to-Head Matchup</h3>
+      <p>Illinois vs UConn side-by-side for every stat. Tug-of-war bars show who wins each category. Key insight pinned at bottom.</p>
+    </div>
+  </div>
+
+</div>

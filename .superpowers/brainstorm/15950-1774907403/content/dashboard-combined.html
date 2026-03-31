@@ -1,0 +1,149 @@
+<h2>Combined A + B — with Team Rankings</h2>
+<p class="subtitle">Hero stats + bar charts (A) flows into report card grid (B). Rankings shown in the team headers. Click to select if this looks right.</p>
+
+<div class="mockup">
+  <div class="mockup-header">Illini Intel — BI Report Panel (right side of dashboard)</div>
+  <div class="mockup-body" style="background:#0d0d0d;padding:16px;font-family:sans-serif">
+
+    <!-- Team header with rankings -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #222">
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">AP Rank</div>
+        <div style="font-size:28px;font-weight:900;color:#ff6b00">#3</div>
+        <div style="font-size:13px;font-weight:bold;color:#fff">ILLINOIS</div>
+        <div style="font-size:9px;color:#666">Fighting Illini</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:2px">Final Four</div>
+        <div style="font-size:9px;color:#444;margin-top:4px">Live Analysis</div>
+        <div style="width:6px;height:6px;background:#4ade80;border-radius:50%;margin:4px auto 0;animation:pulse 1.5s infinite"></div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px">AP Rank</div>
+        <div style="font-size:28px;font-weight:900;color:#4a9eff">#1</div>
+        <div style="font-size:13px;font-weight:bold;color:#fff">UCONN</div>
+        <div style="font-size:9px;color:#666">Huskies</div>
+      </div>
+    </div>
+
+    <!-- Section A: Hero numbers -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <div style="flex:1;background:#1a1a1a;border-radius:8px;padding:10px;text-align:center;border:1px solid #222">
+        <div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:4px">Points/Game</div>
+        <div style="display:flex;justify-content:space-around;align-items:baseline">
+          <div><span style="font-size:24px;font-weight:bold;color:#ff6b00">87.3</span><div style="font-size:8px;color:#666">ILL</div></div>
+          <div style="font-size:10px;color:#444">vs</div>
+          <div><span style="font-size:24px;font-weight:bold;color:#4a9eff">79.1</span><div style="font-size:8px;color:#666">UCC</div></div>
+        </div>
+      </div>
+      <div style="flex:1;background:#1a1a1a;border-radius:8px;padding:10px;text-align:center;border:1px solid #222">
+        <div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:4px">3PT%</div>
+        <div style="display:flex;justify-content:space-around;align-items:baseline">
+          <div><span style="font-size:24px;font-weight:bold;color:#ff6b00">38.4</span><div style="font-size:8px;color:#666">ILL</div></div>
+          <div style="font-size:10px;color:#444">vs</div>
+          <div><span style="font-size:24px;font-weight:bold;color:#4a9eff">31.2</span><div style="font-size:8px;color:#666">UCC</div></div>
+        </div>
+      </div>
+      <div style="flex:1;background:#4ade8015;border-radius:8px;padding:10px;text-align:center;border:1px solid #4ade8040">
+        <div style="font-size:9px;color:#888;text-transform:uppercase;margin-bottom:4px">Win Prob</div>
+        <div style="font-size:28px;font-weight:bold;color:#4ade80">61%</div>
+        <div style="font-size:8px;color:#4ade80">Illinois</div>
+      </div>
+    </div>
+
+    <!-- Section A: Bar charts -->
+    <div style="background:#1a1a1a;border-radius:8px;padding:12px;margin-bottom:16px;border:1px solid #222">
+      <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Category Breakdown</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:60px;font-size:9px;color:#aaa;text-align:right">Offense</div>
+          <div style="flex:1;background:#222;border-radius:4px;height:12px;overflow:hidden">
+            <div style="width:78%;background:linear-gradient(90deg,#ff6b00,#ff9500);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="width:28px;font-size:9px;color:#ff6b00;font-weight:bold">78%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:60px;font-size:9px;color:#aaa;text-align:right">Defense</div>
+          <div style="flex:1;background:#222;border-radius:4px;height:12px;overflow:hidden">
+            <div style="width:62%;background:linear-gradient(90deg,#4a9eff,#7bc8ff);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="width:28px;font-size:9px;color:#4a9eff;font-weight:bold">62%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:60px;font-size:9px;color:#aaa;text-align:right">Rebounding</div>
+          <div style="flex:1;background:#222;border-radius:4px;height:12px;overflow:hidden">
+            <div style="width:45%;background:linear-gradient(90deg,#4a9eff,#7bc8ff);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="width:28px;font-size:9px;color:#4a9eff;font-weight:bold">45%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:60px;font-size:9px;color:#aaa;text-align:right">Pace</div>
+          <div style="flex:1;background:#222;border-radius:4px;height:12px;overflow:hidden">
+            <div style="width:85%;background:linear-gradient(90deg,#ff6b00,#ff9500);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="width:28px;font-size:9px;color:#ff6b00;font-weight:bold">85%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:60px;font-size:9px;color:#aaa;text-align:right">Turnovers</div>
+          <div style="flex:1;background:#222;border-radius:4px;height:12px;overflow:hidden">
+            <div style="width:55%;background:linear-gradient(90deg,#ff6b00,#ff9500);height:100%;border-radius:4px"></div>
+          </div>
+          <div style="width:28px;font-size:9px;color:#ff6b00;font-weight:bold">55%</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;background:#ff6b00;border-radius:2px"></div><div style="font-size:8px;color:#888">Illinois edge</div></div>
+        <div style="display:flex;align-items:center;gap:4px"><div style="width:8px;height:8px;background:#4a9eff;border-radius:2px"></div><div style="font-size:8px;color:#888">UConn edge</div></div>
+      </div>
+    </div>
+
+    <!-- Section B: Report card grid -->
+    <div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Dimension Report Cards</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:#1a1a1a;border-radius:8px;padding:10px;border:1px solid #222">
+        <div style="font-size:9px;color:#888;margin-bottom:4px">OFFENSE</div>
+        <div style="font-size:22px;font-weight:bold;color:#4ade80">A+</div>
+        <div style="font-size:8px;color:#555">Top 5 nationally · 87.3 PPG</div>
+      </div>
+      <div style="background:#1a1a1a;border-radius:8px;padding:10px;border:1px solid #222">
+        <div style="font-size:9px;color:#888;margin-bottom:4px">3-POINT</div>
+        <div style="font-size:22px;font-weight:bold;color:#4ade80">A</div>
+        <div style="font-size:8px;color:#555">38.4% · vs UConn 31.2%</div>
+      </div>
+      <div style="background:#1a1a1a;border-radius:8px;padding:10px;border:1px solid #222">
+        <div style="font-size:9px;color:#888;margin-bottom:4px">DEFENSE</div>
+        <div style="font-size:22px;font-weight:bold;color:#facc15">B+</div>
+        <div style="font-size:8px;color:#555">Top 15 · concern vs UConn post</div>
+      </div>
+      <div style="background:#1a1a1a;border-radius:8px;padding:10px;border:1px solid #222">
+        <div style="font-size:9px;color:#888;margin-bottom:4px">PACE</div>
+        <div style="font-size:22px;font-weight:bold;color:#4ade80">A</div>
+        <div style="font-size:8px;color:#555">72.1 vs UConn 67.3 — big edge</div>
+      </div>
+    </div>
+
+    <!-- Prediction -->
+    <div style="background:#ff6b0015;border:1px solid #ff6b0050;border-radius:8px;padding:12px">
+      <div style="font-size:9px;color:#ff6b00;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Narrator Prediction</div>
+      <div style="font-size:12px;color:#ddd;line-height:1.5">"Illinois' pace advantage and elite 3-point shooting give them a realistic path. The key: force transition before UConn sets their interior defense."</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="options" style="margin-top:20px">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>Yes, this is the direction</h3>
+      <p>Combined A+B with rankings — let's build it</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)">
+    <div class="letter">~</div>
+    <div class="content">
+      <h3>Close, but I want changes</h3>
+      <p>Tell me what to adjust</p>
+    </div>
+  </div>
+</div>

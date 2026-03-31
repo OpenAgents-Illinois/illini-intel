@@ -82,5 +82,18 @@ def win_probability(probability: float) -> dict[str, Any]:
     return {"type": "win_probability", "probability": probability}
 
 
+def chart(chart_type: str, title: str, series: list[dict[str, Any]]) -> dict[str, Any]:
+    """Generic chart event. chart_type: 'grouped_bars'. series: list of {label, illinois, opponent}."""
+    return {"type": "chart", "chart_type": chart_type, "title": title, "series": series}
+
+
+def recent_form(team: str, results: list[str]) -> dict[str, Any]:
+    return {"type": "recent_form", "team": team, "results": results}
+
+
+def key_factor(label: str, detail: str, favors: str) -> dict[str, Any]:
+    return {"type": "key_factor", "label": label, "detail": detail, "favors": favors}
+
+
 def done() -> dict[str, str]:
     return {"type": "done"}

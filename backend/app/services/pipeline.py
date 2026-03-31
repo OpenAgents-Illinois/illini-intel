@@ -247,6 +247,93 @@ def _team_display_fields(team_payload: dict[str, Any], fallback_name: str, fallb
     )
 
 
+def _extract_recent_form(schedule: dict[str, Any], team_id: str, n: int = 5) -> list[str]:
+    """Return the last n W/L results for team_id from a completed-game schedule."""
+    results: list[str] = []
+    for event in reversed(schedule.get("events", [])):
+        if not isinstance(event, dict):
+            continue
+
+        # ESPN puts status on the event or on competitions[0]
+        event_status = event.get("status", {}).get("type", {}).get("name", "")
+        competition = (event.get("competitions") or [{}])[0]
+        comp_status = (
+            competition.get("status", {}).get("type", {}).get("name", "")
+            if isinstance(competition, dict)
+            else ""
+        )
+        status = event_status or comp_status
+        if "FINAL" not in status.upper():
+            continue
+
+        competitor = _competitor_for_team(event, team_id)
+        if not competitor:
+            continue
+
+        winner = competitor.get("winner")
+        if winner is True or winner == "true":
+            results.append("W")
+        elif winner is False or winner == "false":
+            results.append("L")
+        else:
+            # Fall back to score comparison
+            score = competitor.get("score")
+            if score is not None:
+                for c in _competitors_from_event(event):
+                    if str(c.get("team", {}).get("id")) != str(team_id):
+                        opp_score = c.get("score")
+                        if opp_score is not None:
+                            try:
+                                results.append("W" if float(score) > float(opp_score) else "L")
+                            except (TypeError, ValueError):
+                                pass
+                        break
+
+        if len(results) >= n:
+            break
+    return results
+
+
+def _slim_team(team_payload: dict[str, Any]) -> dict[str, Any]:
+    """Return only identity and statistics fields to keep context compact."""
+    team = team_payload.get("team", {})
+    return {
+        "id": team.get("id"),
+        "displayName": team.get("displayName"),
+        "shortDisplayName": team.get("shortDisplayName"),
+        "abbreviation": team.get("abbreviation"),
+        "record": team.get("record"),
+        "statistics": team.get("statistics"),
+        "ranks": team.get("ranks"),
+    }
+
+
+def _extract_stat_map(team_payload: dict[str, Any]) -> dict[str, Any]:
+    """Extract a flat name→value map from ESPN statistics array."""
+    team = team_payload.get("team", {})
+    stats: dict[str, Any] = {}
+    for entry in team.get("statistics", []) or []:
+        name = entry.get("displayName") or entry.get("name")
+        value = entry.get("displayValue") or entry.get("value")
+        if name and value is not None:
+            stats[name] = value
+    return stats
+
+
+def _build_stat_comparison_table(
+    illinois_payload: dict[str, Any],
+    opponent_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Return a list of {stat, illinois, opponent} rows for stats present in both teams."""
+    illinois_stats = _extract_stat_map(illinois_payload)
+    opponent_stats = _extract_stat_map(opponent_payload)
+    shared = sorted(set(illinois_stats) & set(opponent_stats))
+    return [
+        {"stat": k, "illinois": illinois_stats[k], "opponent": opponent_stats[k]}
+        for k in shared
+    ]
+
+
 def _build_team_header(
     illinois: dict[str, Any],
     opponent: dict[str, Any],
@@ -335,21 +422,40 @@ def run(goal: str, emit: Emitter) -> None:
             )
         )
 
+        emit(events.tool_call("scout", "fetch_schedule", {"team_id": opponent_id, "season": seasons[0]}))
+        opponent_schedule = fetch_schedule(opponent_id, season=seasons[0])
+        emit(
+            events.tool_result(
+                "scout",
+                "fetch_schedule",
+                {"team": "opponent", "season": seasons[0], "games": len(opponent_schedule.get("events", []))},
+            )
+        )
+
         team_header = _build_team_header(illinois, opponent, matchup_event)
+        stat_comparison_table = _build_stat_comparison_table(illinois, opponent)
+
+        illinois_form = _extract_recent_form(schedules[0], ILLINOIS_TEAM_ID)
+        opponent_form = _extract_recent_form(opponent_schedule, opponent_id)
+        emit(events.recent_form(team_header.get("illinois_name", "Illinois"), illinois_form))
+        emit(events.recent_form(team_header.get("opponent_name", "Opponent"), opponent_form))
 
         raw_context = {
-            "illinois": illinois.get("team", {}),
-            "opponent": opponent.get("team", {}),
+            "illinois": _slim_team(illinois),
+            "opponent": _slim_team(opponent),
+            "stat_comparison_table": stat_comparison_table,
             "team_header": team_header,
             "matchup_event": matchup_event,
-            "schedule_event_count": len(schedule.get("events", [])),
-            "scoreboard_event_count": len(scoreboard.get("events", [])),
         }
+        illinois_name = team_header.get("illinois_name", "Illinois")
+        opponent_name = team_header.get("opponent_name", "Opponent")
         prompt = (
             f"Goal: {goal}\n\n"
             "You are the Scout agent for Illini Intel. Review this ESPN-derived context and write "
-            "a concise scouting summary for downstream analysis. Focus on matchup context, team identity, "
-            "and what Illinois needs to control. Plain text only.\n\n"
+            "a concise scouting summary for downstream analysis. "
+            f"The stat_comparison_table contains side-by-side season averages for {illinois_name} and {opponent_name} — "
+            "explicitly mention key stats (scoring, rebounds, turnovers, tempo, shooting) for BOTH teams by name. "
+            "Focus on matchup context and what Illinois needs to control. Plain text only.\n\n"
             f"Context:\n{json.dumps(raw_context, default=str)[:12000]}"
         )
         scout_summary = converse_text(prompt, max_tokens=900)

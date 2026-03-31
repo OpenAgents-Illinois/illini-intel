@@ -27,9 +27,12 @@ def test_analyze_stream_emits_sse_events(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/event-stream')
+    assert response.headers['cache-control'] == 'no-cache'
+    assert response.headers['x-accel-buffering'] == 'no'
     assert '"type": "agent_thought"' in response.text
     assert '"type": "insight_card"' in response.text
     assert '"type": "done"' in response.text
+    assert response.text.count('data: ') == 3
 
 
 def test_analyze_stream_emits_done_on_pipeline_error(monkeypatch) -> None:
@@ -44,3 +47,19 @@ def test_analyze_stream_emits_done_on_pipeline_error(monkeypatch) -> None:
     assert response.status_code == 200
     assert 'Server error' in response.text
     assert '"type": "done"' in response.text
+
+
+def test_analyze_uses_default_goal_when_missing(monkeypatch) -> None:
+    seen_goals = []
+
+    def fake_run_pipeline(goal, emit):
+        seen_goals.append(goal)
+        emit({'type': 'done'})
+
+    monkeypatch.setattr('app.api.routes.run_pipeline', fake_run_pipeline)
+
+    client = TestClient(app)
+    response = client.get('/analyze')
+
+    assert response.status_code == 200
+    assert seen_goals == ['Analyze Illinois basketball team for the upcoming game']

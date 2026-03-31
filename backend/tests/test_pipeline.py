@@ -117,3 +117,40 @@ def test_extract_ap_rank_falls_back_to_top_level_rank() -> None:
     payload = {'rank': 7}
 
     assert pipeline._extract_ap_rank(payload, '41') == 7
+
+
+def test_build_team_header_uses_structured_espn_data() -> None:
+    illinois = {
+        'team': {'displayName': 'Illinois'},
+        'nextEvent': [
+            {
+                'competitions': [
+                    {
+                        'competitors': [
+                            {'team': {'id': '356'}, 'curatedRank': {'current': 3}},
+                        ]
+                    }
+                ]
+            }
+        ],
+    }
+    opponent = {
+        'team': {'displayName': 'UConn'},
+        'nextEvent': [
+            {
+                'competitions': [
+                    {
+                        'competitors': [
+                            {'team': {'id': '41'}, 'curatedRank': {'current': 2}},
+                        ]
+                    }
+                ]
+            }
+        ],
+    }
+
+    assert pipeline._build_team_header(illinois, opponent) == {
+        'illinois_rank': 3,
+        'opponent_name': 'UConn',
+        'opponent_rank': 2,
+    }

@@ -4,6 +4,10 @@ import { StatComparisonChart } from "@/app/features/analysis/components/StatComp
 import { ReportCardGrid } from "@/app/features/analysis/components/ReportCardGrid";
 import { MatchupPreview } from "@/app/features/analysis/components/MatchupPreview";
 import { Prediction } from "@/app/features/analysis/components/Prediction";
+import { InsightCard } from "@/app/features/analysis/components/InsightCard";
+import { RecentForm } from "@/app/features/analysis/components/RecentForm";
+import { KeyFactors } from "@/app/features/analysis/components/KeyFactors";
+import { GroupedBarChart } from "@/app/features/analysis/components/GroupedBarChart";
 import { StreamState } from "@/app/features/analysis/types";
 
 interface BiReportPanelProps {
@@ -17,7 +21,11 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
     streamState.statComparisons.length > 0 ||
     streamState.reportCards.length > 0 ||
     streamState.matchupPreview !== null ||
-    streamState.prediction !== null;
+    streamState.prediction !== null ||
+    streamState.insightCards.length > 0 ||
+    streamState.recentForms.length > 0 ||
+    streamState.keyFactors.length > 0 ||
+    streamState.charts.length > 0;
 
   return (
     <div className="w-1/2 overflow-y-auto p-4 space-y-4">
@@ -31,20 +39,41 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
         <TeamHeader data={streamState.teamHeader} running={streamState.running} />
       )}
 
+      {streamState.recentForms.length > 0 && (
+        <RecentForm forms={streamState.recentForms} />
+      )}
+
       {streamState.winProbability !== null && (
         <WinProbability probability={streamState.winProbability} />
       )}
 
-      {streamState.statComparisons.length > 0 && (
-        <StatComparisonChart comparisons={streamState.statComparisons} />
+      {(!streamState.running || streamState.statComparisons.length > 0) && streamState.winProbability !== null && (
+        <StatComparisonChart
+          comparisons={streamState.statComparisons}
+          opponentName={streamState.teamHeader?.opponent_name}
+        />
+      )}
+
+      {streamState.charts.map((chart, i) => (
+        <GroupedBarChart key={i} chart={chart} opponentName={streamState.teamHeader?.opponent_name} />
+      ))}
+
+      {streamState.keyFactors.length > 0 && (
+        <KeyFactors factors={streamState.keyFactors} />
       )}
 
       {streamState.reportCards.length > 0 && (
         <ReportCardGrid cards={streamState.reportCards} />
       )}
 
+      {streamState.insightCards.map((card, i) => (
+        <InsightCard key={i} title={card.title} data={card.data} />
+      ))}
+
       {streamState.matchupPreview !== null && <MatchupPreview content={streamState.matchupPreview} />}
-      {streamState.prediction !== null && <Prediction content={streamState.prediction} />}
+      {streamState.prediction !== null && (
+        <Prediction content={streamState.prediction} winProbability={streamState.winProbability} />
+      )}
     </div>
   );
 }

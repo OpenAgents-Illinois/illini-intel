@@ -15,11 +15,7 @@ export function KeyFactors({ factors }: KeyFactorsProps) {
           <div key={i} className="flex items-start gap-3">
             <div
               className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                factor.favors === "illinois"
-                  ? "bg-orange-500"
-                  : factor.favors === "opponent"
-                  ? "bg-blue-400"
-                  : "bg-zinc-500"
+                factor.favors === "illinois" ? "bg-orange-500" : "bg-blue-400"
               }`}
             />
             <div className="flex-1 min-w-0">
@@ -35,7 +31,7 @@ export function KeyFactors({ factors }: KeyFactorsProps) {
                   : "text-zinc-500"
               }`}
             >
-              {factor.favors === "illinois" ? "ILL" : factor.favors === "opponent" ? "OPP" : "—"}
+              {factor.favors === "illinois" ? "ILL" : "OPP"}
             </div>
           </div>
         ))}

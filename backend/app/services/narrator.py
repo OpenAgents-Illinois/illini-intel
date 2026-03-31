@@ -242,8 +242,8 @@ def generate_key_factors(context: str) -> list[dict[str, Any]]:
         f"{context}\n\n"
         "Identify 3-4 key swing factors drawn only from the context and FACTUAL ESPN STATS above. "
         "Any numbers cited in the detail must come from the FACTUAL ESPN STATS — do not invent figures. "
-        "For each factor specify who it favors. "
-        'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "illinois" or "opponent" or "neutral"}. '
+        "Every factor must clearly favor one team — pick a side, do not use neutral. "
+        'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "illinois" or "opponent"}. '
         "Labels must be specific (e.g. 'Illinois Rebounding Edge') — never generic like 'Key Factor'."
     )
     raw = converse_text(prompt, max_tokens=768)

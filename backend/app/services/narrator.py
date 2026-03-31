@@ -98,6 +98,7 @@ def generate_insight_card(context: str) -> dict[str, Any]:
     prompt = (
         f"{context}\n\n"
         "Extract 4-6 key Illinois basketball insights from the context. "
+        "Any numeric values (stats, records, ranks) must come from the FACTUAL ESPN STATS section above — do not invent numbers. "
         "Respond with ONLY a JSON object, no other text:\n"
         '{"title": "<short title>", "data": {"key1": "value1", "key2": "value2"}}'
     )
@@ -137,8 +138,9 @@ def generate_team_header(context: str) -> dict[str, Any]:
 def generate_win_probability(context: str) -> float:
     prompt = (
         f"{context}\n\n"
-        "Based solely on the scout data and analyst findings above, estimate the Illinois win probability. "
-        "Return a float between 0 and 100 reflecting a realistic, evidence-based assessment. "
+        "Based solely on the scout data, analyst findings, and FACTUAL ESPN STATS above, "
+        "estimate the Illinois win probability as a float from 0 to 100. "
+        "Ground the estimate in the actual stat advantages and disadvantages shown — do not guess. "
         'Respond with ONLY a JSON object: {"probability": <float 0-100>}'
     )
     raw = converse_text(prompt, max_tokens=256)
@@ -178,7 +180,9 @@ def generate_report_cards(context: str) -> list[dict[str, Any]]:
     prompt = (
         f"{context}\n\n"
         "Grade Illinois across 4 dimensions like Offense, Defense, Shooting, Rebounding. "
+        "Base grades on the FACTUAL ESPN STATS above — do not assume stats not present. "
         "Grades must be one of A+, A, A-, B+, B, B-, C+, C. "
+        "Each item must have: dimension, grade, stat (a real value from the ESPN stats), explanation. "
         "Respond with ONLY a JSON array, no other text."
     )
     return _load_json_array(converse_text(prompt, max_tokens=1024))
@@ -189,9 +193,8 @@ def generate_matchup_preview(context: str) -> str:
         f"{context}\n\n"
         "Write a thorough matchup preview for serious Illinois basketball fans. "
         "Use 3 short paragraphs with 2-3 sentences each and separate each paragraph with a blank line. "
-        "Include specific player history, rotation context, recent form, "
-        "shot profile, rebounding or turnover dynamics, and any advanced-stat style angles that are supported by the context. "
-        "If the context mentions prior meetings, NCAA tournament history, or notable player development, include that too. "
+        "Any statistics you cite must come from the FACTUAL ESPN STATS section — do not invent percentages, averages, or rankings. "
+        "Include rotation context, recent form, rebounding or turnover dynamics, and matchup angles supported by the data. "
         "Plain text only."
     )
     return converse_text(prompt, max_tokens=512)
@@ -237,10 +240,11 @@ def generate_charts(context: str, stat_comparison_table: list[dict[str, Any]] | 
 def generate_key_factors(context: str) -> list[dict[str, Any]]:
     prompt = (
         f"{context}\n\n"
-        "Identify 3-4 key swing factors that will decide this game, drawn only from the context above. "
+        "Identify 3-4 key swing factors drawn only from the context and FACTUAL ESPN STATS above. "
+        "Any numbers cited in the detail must come from the FACTUAL ESPN STATS — do not invent figures. "
         "For each factor specify who it favors. "
         'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "illinois" or "opponent" or "neutral"}. '
-        "Labels must be specific (e.g. 'Illinois 3PT Defense') — never generic like 'Key Factor'."
+        "Labels must be specific (e.g. 'Illinois Rebounding Edge') — never generic like 'Key Factor'."
     )
     raw = converse_text(prompt, max_tokens=768)
     items = _load_json_array(raw)
@@ -260,12 +264,11 @@ def generate_key_factors(context: str) -> list[dict[str, Any]]:
 def generate_prediction(context: str, win_probability: float) -> str:
     prompt = (
         f"{context}\n\n"
-        f"Use this exact Illinois win probability in your response: {win_probability:.1f}%.\n"
-        "Based on the data, give a game prediction for Illinois including the exact win probability above, "
-        "a predicted score, and 2 short paragraphs of reasoning separated by a blank line. "
-        "The first paragraph should state the prediction cleanly. "
-        "The second paragraph should explain why using the matchup details. "
-        "Do not invent a different probability. Plain text only."
+        f"Use this exact Illinois win probability: {win_probability:.1f}%.\n"
+        "Give a game prediction in 2 short paragraphs separated by a blank line. "
+        "The first paragraph states the predicted outcome and score. "
+        "The second paragraph explains why, citing only statistics from the FACTUAL ESPN STATS section — do not invent figures. "
+        "Do not use a different probability. Plain text only."
     )
     return converse_text(prompt, max_tokens=512)
 
@@ -301,10 +304,17 @@ def run_narrator(
     stat_comparison_table: list[dict[str, Any]] | None = None,
 ) -> None:
     emit(events.agent_thought("narrator", f"Generating BI report for: {goal}"))
+    stat_block = (
+        f"\n\nFACTUAL ESPN STATS (cite ONLY these numbers — do not invent any statistics):\n"
+        f"{json.dumps(stat_comparison_table)}"
+        if stat_comparison_table
+        else ""
+    )
     context = (
         f"Goal: {goal}\n\n"
         f"Scout data:\n{scout_summary}\n\n"
         f"Analyst findings:\n{analyst_summary}"
+        f"{stat_block}"
     )
 
     # Run all independent LLM calls in parallel; prediction waits for win_probability

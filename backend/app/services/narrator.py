@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 from app.clients.bedrock import converse_text
@@ -47,6 +48,52 @@ def _load_json_array(raw: str) -> list[dict[str, Any]]:
         return []
 
 
+def _is_placeholder_text(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = value.strip().lower()
+    return normalized in {"", "-", "n/a", "na", "unknown", "none", "stat", "metric", "value"}
+
+
+def _normalize_stat_comparison_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized_items: list[dict[str, Any]] = []
+    seen_labels: set[str] = set()
+
+    for item in items:
+        label = str(item.get("label", "")).strip()
+        illinois_value = str(item.get("illinois_value", "")).strip()
+        opponent_value = str(item.get("opponent_value", "")).strip()
+
+        if _is_placeholder_text(label):
+            continue
+        if _is_placeholder_text(illinois_value) and _is_placeholder_text(opponent_value):
+            continue
+
+        try:
+            pct = float(item.get("illinois_pct", 0.5))
+        except (TypeError, ValueError):
+            continue
+
+        if not 0.0 <= pct <= 1.0:
+            continue
+
+        dedupe_key = label.lower()
+        if dedupe_key in seen_labels:
+            continue
+        seen_labels.add(dedupe_key)
+
+        normalized_items.append(
+            {
+                "label": label,
+                "illinois_value": illinois_value or "-",
+                "opponent_value": opponent_value or "-",
+                "illinois_pct": pct,
+            }
+        )
+
+    return normalized_items[:4]
+
+
 def generate_insight_card(context: str) -> dict[str, Any]:
     prompt = (
         f"{context}\n\n"
@@ -90,8 +137,9 @@ def generate_team_header(context: str) -> dict[str, Any]:
 def generate_win_probability(context: str) -> float:
     prompt = (
         f"{context}\n\n"
-        "Estimate Illinois win probability as a percentage from 0 to 100. "
-        'Respond with ONLY a JSON object, no other text: {"probability": 61.0}'
+        "Based solely on the scout data and analyst findings above, estimate the Illinois win probability. "
+        "Return a float between 0 and 100 reflecting a realistic, evidence-based assessment. "
+        'Respond with ONLY a JSON object: {"probability": <float 0-100>}'
     )
     raw = converse_text(prompt, max_tokens=256)
     data = _load_json_object(raw, {"probability": 50.0})
@@ -105,11 +153,16 @@ def generate_win_probability(context: str) -> float:
 def generate_stat_comparisons(context: str) -> list[dict[str, Any]]:
     prompt = (
         f"{context}\n\n"
-        "Extract 4 key stat comparisons between Illinois and the opponent. "
-        "illinois_pct is Illinois's share in [0.0, 1.0], where values over 0.5 mean Illinois leads. "
-        "Respond with ONLY a JSON array, no other text."
+        "Using only the scout data and analyst findings above, extract 4 key stat comparisons between Illinois and the opponent. "
+        "All values must come directly from the context — do not invent numbers not present. "
+        "illinois_pct is Illinois's share in [0.0, 1.0] computed from the two values, where >0.5 means Illinois leads. "
+        "Only include a stat if you have real values for BOTH Illinois and the opponent from the context. Omit any stat where the opponent value is missing. "
+        "Use descriptive labels like Tempo, Rebounding, Turnover Rate, 3PT Volume — never generic names like Stat or Metric. "
+        'Respond with ONLY a JSON array. Each element has keys: "label" (string), "illinois_value" (string), "opponent_value" (string), "illinois_pct" (float 0.0-1.0).'
     )
-    return _load_json_array(converse_text(prompt, max_tokens=1024))
+    return _normalize_stat_comparison_items(
+        _load_json_array(converse_text(prompt, max_tokens=1024))
+    )
 
 
 def generate_report_cards(context: str) -> list[dict[str, Any]]:
@@ -125,17 +178,78 @@ def generate_report_cards(context: str) -> list[dict[str, Any]]:
 def generate_matchup_preview(context: str) -> str:
     prompt = (
         f"{context}\n\n"
-        "Write a concise 2-3 sentence matchup preview for the Illinois game. "
-        "Be specific about strengths, weaknesses, and key players. Plain text only."
+        "Write a thorough matchup preview for serious Illinois basketball fans. "
+        "Use 3 short paragraphs with 2-3 sentences each and separate each paragraph with a blank line. "
+        "Include specific player history, rotation context, recent form, "
+        "shot profile, rebounding or turnover dynamics, and any advanced-stat style angles that are supported by the context. "
+        "If the context mentions prior meetings, NCAA tournament history, or notable player development, include that too. "
+        "Plain text only."
     )
     return converse_text(prompt, max_tokens=512)
 
 
-def generate_prediction(context: str) -> str:
+def generate_charts(context: str) -> list[dict[str, Any]]:
     prompt = (
         f"{context}\n\n"
-        "Based on the data, give a game prediction for Illinois including win probability, "
-        "predicted score, and 1-2 sentence reasoning. Plain text only."
+        "Given the stat data above, produce 2-3 grouped bar charts that best reveal key matchup dimensions. "
+        "Good chart groups: Shooting (FG%, 3PT%, FT%), Scoring & Pace (PPG, Tempo, Assists), "
+        "Defense (Opp PPG, Steals, Blocks), Rebounding (Offensive Reb, Defensive Reb, Total Reb). "
+        "Only include a chart group if you have real values for BOTH teams from the context. "
+        "Each series item must have illinois and opponent as string values with units (e.g. '47.2%', '82.1 ppg'). "
+        'Respond with ONLY a JSON array. Each element: {"title": "<chart title>", "series": [{"label": "<stat>", "illinois": "<value>", "opponent": "<value>"}, ...]}'
+    )
+    raw = converse_text(prompt, max_tokens=1024)
+    items = _load_json_array(raw)
+    charts: list[dict[str, Any]] = []
+    for item in items:
+        title = str(item.get("title", "")).strip()
+        series = item.get("series", [])
+        if not title or not isinstance(series, list) or not series:
+            continue
+        valid_series = []
+        for s in series:
+            label = str(s.get("label", "")).strip()
+            illinois = str(s.get("illinois", "")).strip()
+            opponent = str(s.get("opponent", "")).strip()
+            if label and illinois and opponent and not _is_placeholder_text(illinois) and not _is_placeholder_text(opponent):
+                valid_series.append({"label": label, "illinois": illinois, "opponent": opponent})
+        if valid_series:
+            charts.append({"title": title, "series": valid_series})
+    return charts[:3]
+
+
+def generate_key_factors(context: str) -> list[dict[str, Any]]:
+    prompt = (
+        f"{context}\n\n"
+        "Identify 3-4 key swing factors that will decide this game, drawn only from the context above. "
+        "For each factor specify who it favors. "
+        'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "illinois" or "opponent" or "neutral"}. '
+        "Labels must be specific (e.g. 'Illinois 3PT Defense') — never generic like 'Key Factor'."
+    )
+    raw = converse_text(prompt, max_tokens=768)
+    items = _load_json_array(raw)
+    result: list[dict[str, Any]] = []
+    for item in items:
+        label = str(item.get("label", "")).strip()
+        detail = str(item.get("detail", "")).strip()
+        favors = str(item.get("favors", "neutral")).strip().lower()
+        if not label or not detail:
+            continue
+        if favors not in {"illinois", "opponent", "neutral"}:
+            favors = "neutral"
+        result.append({"label": label, "detail": detail, "favors": favors})
+    return result[:4]
+
+
+def generate_prediction(context: str, win_probability: float) -> str:
+    prompt = (
+        f"{context}\n\n"
+        f"Use this exact Illinois win probability in your response: {win_probability:.1f}%.\n"
+        "Based on the data, give a game prediction for Illinois including the exact win probability above, "
+        "a predicted score, and 2 short paragraphs of reasoning separated by a blank line. "
+        "The first paragraph should state the prediction cleanly. "
+        "The second paragraph should explain why using the matchup details. "
+        "Do not invent a different probability. Plain text only."
     )
     return converse_text(prompt, max_tokens=512)
 
@@ -176,10 +290,34 @@ def run_narrator(
         f"Analyst findings:\n{analyst_summary}"
     )
 
-    insight = generate_insight_card(context)
+    # Run all independent LLM calls in parallel; prediction waits for win_probability
+    tasks = {
+        "insight": lambda: generate_insight_card(context),
+        "header": lambda: generate_team_header(context),
+        "win_prob": lambda: generate_win_probability(context),
+        "stat_comparisons": lambda: generate_stat_comparisons(context),
+        "report_cards": lambda: generate_report_cards(context),
+        "charts": lambda: generate_charts(context),
+        "key_factors": lambda: generate_key_factors(context),
+        "matchup_preview": lambda: generate_matchup_preview(context),
+    }
+
+    results: dict[str, Any] = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(fn): name for name, fn in tasks.items()}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                emit(events.agent_thought("narrator", f"Narrator sub-task '{name}' error: {exc!r}"))
+                results[name] = None
+
+    # Emit in logical UI order
+    insight = results.get("insight") or {}
     emit(events.insight_card(insight.get("title", "Illinois Basketball Insights"), insight.get("data", {})))
 
-    header = _merge_team_header(generate_team_header(context), team_header)
+    header = _merge_team_header(results.get("header") or {}, team_header)
     emit(
         events.team_header(
             header.get("illinois_rank"),
@@ -192,9 +330,10 @@ def run_narrator(
         )
     )
 
-    emit(events.win_probability(generate_win_probability(context)))
+    win_probability: float = results.get("win_prob") or 50.0
+    emit(events.win_probability(win_probability))
 
-    for item in generate_stat_comparisons(context):
+    for item in results.get("stat_comparisons") or []:
         try:
             pct = float(item.get("illinois_pct", 0.5))
         except (TypeError, ValueError):
@@ -208,7 +347,7 @@ def run_narrator(
             )
         )
 
-    for item in generate_report_cards(context):
+    for item in results.get("report_cards") or []:
         emit(
             events.report_card(
                 str(item.get("dimension", "Dimension")),
@@ -218,5 +357,18 @@ def run_narrator(
             )
         )
 
-    emit(events.matchup_preview(generate_matchup_preview(context)))
-    emit(events.prediction(generate_prediction(context)))
+    for ch in results.get("charts") or []:
+        emit(events.chart("grouped_bars", ch["title"], ch["series"]))
+
+    for factor in results.get("key_factors") or []:
+        emit(events.key_factor(factor["label"], factor["detail"], factor["favors"]))
+
+    emit(events.matchup_preview(results.get("matchup_preview") or ""))
+
+    # prediction depends on win_probability — run after parallel batch
+    try:
+        prediction_text = generate_prediction(context, win_probability)
+    except Exception as exc:
+        emit(events.agent_thought("narrator", f"Prediction error: {exc!r}"))
+        prediction_text = ""
+    emit(events.prediction(prediction_text))

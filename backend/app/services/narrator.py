@@ -150,15 +150,24 @@ def generate_win_probability(context: str) -> float:
     return max(0.0, min(100.0, value))
 
 
-def generate_stat_comparisons(context: str) -> list[dict[str, Any]]:
+def generate_stat_comparisons(context: str, stat_comparison_table: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    if stat_comparison_table:
+        table_json = json.dumps(stat_comparison_table)
+        table_note = (
+            f"AVAILABLE STATS (use ONLY these — do not invent values):\n{table_json}\n\n"
+            "Each entry has 'stat', 'illinois', and 'opponent' fields from ESPN. "
+            "illinois_pct must be computed from the two real values (illinois / (illinois + opponent)), clamped to [0.0, 1.0].\n\n"
+        )
+    else:
+        table_note = ""
     prompt = (
         f"{context}\n\n"
-        "Using only the scout data and analyst findings above, extract 4 key stat comparisons between Illinois and the opponent. "
-        "All values must come directly from the context — do not invent numbers not present. "
-        "illinois_pct is Illinois's share in [0.0, 1.0] computed from the two values, where >0.5 means Illinois leads. "
-        "Only include a stat if you have real values for BOTH Illinois and the opponent from the context. Omit any stat where the opponent value is missing. "
-        "Use descriptive labels like Tempo, Rebounding, Turnover Rate, 3PT Volume — never generic names like Stat or Metric. "
-        'Respond with ONLY a JSON array. Each element has keys: "label" (string), "illinois_value" (string), "opponent_value" (string), "illinois_pct" (float 0.0-1.0).'
+        f"{table_note}"
+        "Pick the 4 most meaningful stats for this matchup from the available stats above. "
+        "Use ONLY real values from the table — never invent numbers. "
+        "Omit any stat where either value is missing or non-numeric. "
+        "Use the exact stat name as the label. "
+        'Respond with ONLY a JSON array. Each element: "label" (string), "illinois_value" (string), "opponent_value" (string), "illinois_pct" (float 0.0-1.0).'
     )
     return _normalize_stat_comparison_items(
         _load_json_array(converse_text(prompt, max_tokens=1024))
@@ -188,15 +197,22 @@ def generate_matchup_preview(context: str) -> str:
     return converse_text(prompt, max_tokens=512)
 
 
-def generate_charts(context: str) -> list[dict[str, Any]]:
+def generate_charts(context: str, stat_comparison_table: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    if stat_comparison_table:
+        table_json = json.dumps(stat_comparison_table)
+        table_note = (
+            f"AVAILABLE STATS (use ONLY these — do not invent values):\n{table_json}\n\n"
+            "Each entry has 'stat', 'illinois', and 'opponent' fields with real ESPN values.\n\n"
+        )
+    else:
+        table_note = ""
     prompt = (
         f"{context}\n\n"
-        "Given the stat data above, produce 2-3 grouped bar charts that best reveal key matchup dimensions. "
-        "Good chart groups: Shooting (FG%, 3PT%, FT%), Scoring & Pace (PPG, Tempo, Assists), "
-        "Defense (Opp PPG, Steals, Blocks), Rebounding (Offensive Reb, Defensive Reb, Total Reb). "
-        "Only include a chart group if you have real values for BOTH teams from the context. "
-        "Each series item must have illinois and opponent as string values with units (e.g. '47.2%', '82.1 ppg'). "
-        'Respond with ONLY a JSON array. Each element: {"title": "<chart title>", "series": [{"label": "<stat>", "illinois": "<value>", "opponent": "<value>"}, ...]}'
+        f"{table_note}"
+        "Group the available stats above into 2-3 meaningful chart groups (e.g. Scoring, Rebounding, Shooting). "
+        "Use ONLY stat names and values from the table above — never invent numbers. "
+        "Each series item must use the exact 'illinois' and 'opponent' values from the table. "
+        'Respond with ONLY a JSON array. Each element: {"title": "<chart title>", "series": [{"label": "<stat name>", "illinois": "<value from table>", "opponent": "<value from table>"}, ...]}'
     )
     raw = converse_text(prompt, max_tokens=1024)
     items = _load_json_array(raw)
@@ -282,6 +298,7 @@ def run_narrator(
     analyst_summary: str,
     emit: Emitter,
     team_header: dict[str, Any] | None = None,
+    stat_comparison_table: list[dict[str, Any]] | None = None,
 ) -> None:
     emit(events.agent_thought("narrator", f"Generating BI report for: {goal}"))
     context = (
@@ -295,9 +312,9 @@ def run_narrator(
         "insight": lambda: generate_insight_card(context),
         "header": lambda: generate_team_header(context),
         "win_prob": lambda: generate_win_probability(context),
-        "stat_comparisons": lambda: generate_stat_comparisons(context),
+        "stat_comparisons": lambda: generate_stat_comparisons(context, stat_comparison_table),
         "report_cards": lambda: generate_report_cards(context),
-        "charts": lambda: generate_charts(context),
+        "charts": lambda: generate_charts(context, stat_comparison_table),
         "key_factors": lambda: generate_key_factors(context),
         "matchup_preview": lambda: generate_matchup_preview(context),
     }

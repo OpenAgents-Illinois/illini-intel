@@ -485,7 +485,7 @@ def run(goal: str, emit: Emitter) -> None:
         emit(events.agent_thought("narrator", "Skipping narrator because upstream agents failed."))
     else:
         try:
-            run_narrator(goal, scout_summary, analyst_summary, emit, team_header=team_header)
+            run_narrator(goal, scout_summary, analyst_summary, emit, team_header=team_header, stat_comparison_table=stat_comparison_table)
         except Exception as error:
             emit(events.agent_thought("narrator", f"Narrator error: {error!r}"))
 

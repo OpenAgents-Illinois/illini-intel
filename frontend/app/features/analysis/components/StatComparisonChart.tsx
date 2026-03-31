@@ -1,29 +1,45 @@
 import { StatComparisonItem } from "@/app/features/analysis/types";
+import { normalizeComparisons } from "@/app/features/analysis/components/statComparison";
 
 interface StatComparisonChartProps {
   comparisons: StatComparisonItem[];
+  opponentName?: string;
 }
 
-export function StatComparisonChart({ comparisons }: StatComparisonChartProps) {
-  if (comparisons.length === 0) return null;
+export function StatComparisonChart({ comparisons, opponentName = "Opponent" }: StatComparisonChartProps) {
+  const normalizedComparisons = normalizeComparisons(comparisons);
+
+  if (normalizedComparisons.length === 0) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <div className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Category Breakdown</div>
+        <p className="text-sm text-zinc-600">Stat comparison unavailable — insufficient opponent data.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
       <div className="text-xs text-zinc-500 uppercase tracking-widest mb-4">Category Breakdown</div>
       <div className="flex flex-col gap-3">
-        {comparisons.map((item) => {
+        {normalizedComparisons.map((item, index) => {
           const illinoisLeads = item.illinois_pct >= 0.5;
           const pct = Math.round(item.illinois_pct * 100);
+          const opponentPct = 100 - pct;
           return (
-            <div key={item.label} className="flex items-center gap-3">
-              <div className="w-24 text-xs text-zinc-400 text-right">{item.label}</div>
-              <div className="flex-1 bg-zinc-800 rounded-full h-3 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${illinoisLeads ? "bg-orange-500" : "bg-blue-400"}`}
-                  style={{ width: `${pct}%` }}
-                />
+            <div key={`${item.label}-${index}`} className="grid grid-cols-[96px_minmax(0,1fr)_56px] items-center gap-3">
+              <div className="text-xs text-zinc-400 text-right">{item.label}</div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                  <span className={illinoisLeads ? "text-orange-300" : "text-zinc-500"}>{item.illinois_value}</span>
+                  <span className={!illinoisLeads ? "text-blue-300" : "text-zinc-500"}>{item.opponent_value}</span>
+                </div>
+                <div className="flex h-3 overflow-hidden rounded-full bg-zinc-800">
+                  <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
+                  <div className="h-full bg-blue-400" style={{ width: `${opponentPct}%` }} />
+                </div>
               </div>
-              <div className={`w-8 text-xs font-bold ${illinoisLeads ? "text-orange-400" : "text-blue-400"}`}>
+              <div className={`text-xs font-bold ${illinoisLeads ? "text-orange-400" : "text-blue-400"}`}>
                 {pct}%
               </div>
             </div>
@@ -37,7 +53,7 @@ export function StatComparisonChart({ comparisons }: StatComparisonChartProps) {
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-sm bg-blue-400" />
-          <span className="text-xs text-zinc-500">Opponent edge</span>
+          <span className="text-xs text-zinc-500">{opponentName} edge</span>
         </div>
       </div>
     </div>

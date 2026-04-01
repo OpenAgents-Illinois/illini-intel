@@ -13,5 +13,5 @@ def test_generate_prediction_uses_exact_structured_probability(monkeypatch) -> N
     result = narrator.generate_prediction("Illinois vs UConn", 61.0)
 
     assert result == "Illinois has a 61.0% win probability and wins 78-74."
-    assert "Use this exact Illinois win probability in your response: 61.0%" in seen_prompt["prompt"]
-    assert "Do not invent a different probability" in seen_prompt["prompt"]
+    assert "Use this exact Illinois win probability: 61.0%" in seen_prompt["prompt"]
+    assert "Do not use a different probability" in seen_prompt["prompt"]

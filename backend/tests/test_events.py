@@ -9,9 +9,11 @@ def test_team_header_event_preserves_structured_fields() -> None:
         'illinois_rank': 3,
         'illinois_name': 'Illinois',
         'illinois_mascot': 'Fighting Illini',
+        'illinois_color': None,
         'opponent_name': 'UConn',
         'opponent_mascot': 'Huskies',
         'opponent_rank': 2,
+        'opponent_color': None,
         'game_context': 'Final Four',
     }
 

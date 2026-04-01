@@ -94,7 +94,7 @@ def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) 
 
     narrator_calls = []
 
-    def fake_run_narrator(goal: str, scout_summary: str, analyst_summary: str, emit, team_header=None):
+    def fake_run_narrator(goal: str, scout_summary: str, analyst_summary: str, emit, team_header=None, stat_comparison_table=None):
         narrator_calls.append((goal, scout_summary, analyst_summary, team_header))
         emit({'type': 'prediction', 'content': 'Illinois 78-74'})
 
@@ -112,9 +112,11 @@ def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) 
                 'illinois_rank': 3,
                 'illinois_name': 'Illinois',
                 'illinois_mascot': 'Fighting Illini',
+                'illinois_color': None,
                 'opponent_name': 'UConn',
                 'opponent_mascot': 'Huskies',
                 'opponent_rank': 2,
+                'opponent_color': None,
                 'game_context': 'Elite 8',
             },
         )
@@ -201,9 +203,11 @@ def test_build_team_header_uses_structured_espn_data() -> None:
         'illinois_rank': 3,
         'illinois_name': 'Illinois',
         'illinois_mascot': 'Fighting Illini',
+        'illinois_color': None,
         'opponent_name': 'UConn',
         'opponent_mascot': 'Huskies',
         'opponent_rank': 2,
+        'opponent_color': None,
         'game_context': None,
     }
 
@@ -225,8 +229,10 @@ def test_build_team_header_uses_matchup_event_context_and_opponent() -> None:
         'illinois_rank': 3,
         'illinois_name': 'Illinois',
         'illinois_mascot': 'Fighting Illini',
+        'illinois_color': None,
         'opponent_name': 'UConn',
         'opponent_mascot': 'Huskies',
         'opponent_rank': 2,
+        'opponent_color': None,
         'game_context': 'Elite 8',
     }

@@ -42,7 +42,11 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
       )}
 
       {streamState.winProbability !== null && (
-        <WinProbability probability={streamState.winProbability} />
+        <WinProbability
+          probability={streamState.winProbability}
+          opponentName={streamState.teamHeader?.opponent_name}
+          opponentColor={streamState.teamHeader?.opponent_color}
+        />
       )}
 
       {streamState.prediction !== null && (

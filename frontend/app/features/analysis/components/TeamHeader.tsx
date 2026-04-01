@@ -1,4 +1,5 @@
 import { TeamHeaderData } from "@/app/features/analysis/types";
+import { getIllinoisColors, getOpponentColors } from "@/app/features/analysis/components/teamColors";
 
 interface TeamHeaderProps {
   data: TeamHeaderData;
@@ -10,12 +11,14 @@ export function TeamHeader({ data, running }: TeamHeaderProps) {
   const illinoisMascot = data.illinois_mascot || "Fighting Illini";
   const opponentName = data.opponent_name || "Opponent";
   const opponentMascot = data.opponent_mascot || "";
+  const illinoisColors = getIllinoisColors();
+  const opponentColors = getOpponentColors(opponentName, data.opponent_color);
 
   return (
     <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-4">
       <div className="flex h-36 flex-col items-center justify-between text-center">
         <div className="text-xs text-zinc-500 uppercase tracking-widest mb-1">AP Rank</div>
-        <div className="text-4xl font-black text-orange-500">
+        <div className="text-4xl font-black" style={{ color: illinoisColors.primary }}>
           {data.illinois_rank != null ? `#${data.illinois_rank}` : "—"}
         </div>
         <div>
@@ -33,7 +36,7 @@ export function TeamHeader({ data, running }: TeamHeaderProps) {
 
       <div className="flex h-36 flex-col items-center justify-between text-center">
         <div className="text-xs text-zinc-500 uppercase tracking-widest mb-1">AP Rank</div>
-        <div className="text-4xl font-black text-blue-400">
+        <div className="text-4xl font-black" style={{ color: opponentColors.secondary }}>
           {data.opponent_rank != null ? `#${data.opponent_rank}` : "—"}
         </div>
         <div>

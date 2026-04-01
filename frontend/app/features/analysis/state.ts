@@ -25,10 +25,12 @@ function normalizeTeamHeader(event: Extract<AgentEvent, { type: "team_header" }>
       (event as { illinois_name?: string }).illinois_name ?? "Illinois",
     illinois_mascot:
       (event as { illinois_mascot?: string }).illinois_mascot ?? "Fighting Illini",
+    illinois_color: (event as { illinois_color?: string }).illinois_color,
     opponent_name: legacyOpponentName ?? "Opponent",
     opponent_mascot:
       (event as { opponent_mascot?: string }).opponent_mascot ?? "",
     opponent_rank: event.opponent_rank,
+    opponent_color: (event as { opponent_color?: string }).opponent_color,
     game_context: event.game_context ?? "Illinois Basketball",
   };
 }

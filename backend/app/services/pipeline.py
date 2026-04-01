@@ -360,11 +360,13 @@ def _build_team_header(
         else _extract_ap_rank(illinois, ILLINOIS_TEAM_ID),
         "illinois_name": illinois_name,
         "illinois_mascot": illinois_mascot,
+        "illinois_color": illinois.get("team", {}).get("color"),
         "opponent_name": opponent_name,
         "opponent_mascot": opponent_mascot,
         "opponent_rank": _rank_from_event(matchup_event, _opponent_team_id(matchup_event) or UCONN_TEAM_ID)
         if matchup_event
         else _extract_ap_rank(opponent, UCONN_TEAM_ID),
+        "opponent_color": opponent.get("team", {}).get("color"),
         "game_context": _derive_game_context(matchup_event),
     }
 

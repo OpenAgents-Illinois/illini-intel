@@ -51,15 +51,25 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
         <StatComparisonChart
           comparisons={streamState.statComparisons}
           opponentName={streamState.teamHeader?.opponent_name}
+          opponentColor={streamState.teamHeader?.opponent_color}
         />
       )}
 
       {streamState.charts.map((chart, i) => (
-        <GroupedBarChart key={i} chart={chart} opponentName={streamState.teamHeader?.opponent_name} />
+        <GroupedBarChart
+          key={i}
+          chart={chart}
+          opponentName={streamState.teamHeader?.opponent_name}
+          opponentColor={streamState.teamHeader?.opponent_color}
+        />
       ))}
 
       {streamState.keyFactors.length > 0 && (
-        <KeyFactors factors={streamState.keyFactors} />
+        <KeyFactors
+          factors={streamState.keyFactors}
+          opponentName={streamState.teamHeader?.opponent_name}
+          opponentColor={streamState.teamHeader?.opponent_color}
+        />
       )}
 
       {streamState.reportCards.length > 0 && (

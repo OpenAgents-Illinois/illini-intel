@@ -35,15 +35,19 @@ def team_header(
     opponent_mascot: str,
     opponent_rank: int | None,
     game_context: str,
+    illinois_color: str | None = None,
+    opponent_color: str | None = None,
 ) -> dict[str, Any]:
     return {
         "type": "team_header",
         "illinois_rank": illinois_rank,
         "illinois_name": illinois_name,
         "illinois_mascot": illinois_mascot,
+        "illinois_color": illinois_color,
         "opponent_name": opponent_name,
         "opponent_mascot": opponent_mascot,
         "opponent_rank": opponent_rank,
+        "opponent_color": opponent_color,
         "game_context": game_context,
     }
 

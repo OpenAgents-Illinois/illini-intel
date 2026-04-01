@@ -285,7 +285,7 @@ def _merge_team_header(
         if team_header.get(key) is not None:
             merged[key] = team_header[key]
 
-    for key in ("illinois_name", "illinois_mascot", "opponent_name", "opponent_mascot"):
+    for key in ("illinois_name", "illinois_mascot", "illinois_color", "opponent_name", "opponent_mascot", "opponent_color"):
         if team_header.get(key):
             merged[key] = team_header[key]
 
@@ -354,6 +354,8 @@ def run_narrator(
             str(header.get("opponent_mascot", "")),
             header.get("opponent_rank"),
             str(header.get("game_context", "Illinois Basketball")),
+            illinois_color=header.get("illinois_color"),
+            opponent_color=header.get("opponent_color"),
         )
     )
 

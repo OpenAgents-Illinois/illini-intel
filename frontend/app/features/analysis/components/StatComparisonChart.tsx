@@ -1,13 +1,17 @@
 import { StatComparisonItem } from "@/app/features/analysis/types";
 import { normalizeComparisons } from "@/app/features/analysis/components/statComparison";
+import { getIllinoisColors, getOpponentColors } from "@/app/features/analysis/components/teamColors";
 
 interface StatComparisonChartProps {
   comparisons: StatComparisonItem[];
   opponentName?: string;
+  opponentColor?: string;
 }
 
-export function StatComparisonChart({ comparisons, opponentName = "Opponent" }: StatComparisonChartProps) {
+export function StatComparisonChart({ comparisons, opponentName = "Opponent", opponentColor }: StatComparisonChartProps) {
   const normalizedComparisons = normalizeComparisons(comparisons);
+  const illinoisColors = getIllinoisColors();
+  const opponentColors = getOpponentColors(opponentName, opponentColor);
 
   if (normalizedComparisons.length === 0) {
     return (
@@ -31,15 +35,15 @@ export function StatComparisonChart({ comparisons, opponentName = "Opponent" }: 
               <div className="text-xs text-zinc-400 text-right">{item.label}</div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[11px] text-zinc-500">
-                  <span className={illinoisLeads ? "text-orange-300" : "text-zinc-500"}>{item.illinois_value}</span>
-                  <span className={!illinoisLeads ? "text-blue-300" : "text-zinc-500"}>{item.opponent_value}</span>
+                  <span style={{ color: illinoisLeads ? illinoisColors.accentText : undefined }}>{item.illinois_value}</span>
+                  <span style={{ color: !illinoisLeads ? opponentColors.accentText : undefined }}>{item.opponent_value}</span>
                 </div>
                 <div className="flex h-3 overflow-hidden rounded-full bg-zinc-800">
-                  <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
-                  <div className="h-full bg-blue-400" style={{ width: `${opponentPct}%` }} />
+                  <div className="h-full" style={{ width: `${pct}%`, backgroundColor: illinoisColors.primary }} />
+                  <div className="h-full" style={{ width: `${opponentPct}%`, backgroundColor: opponentColors.secondary }} />
                 </div>
               </div>
-              <div className={`text-xs font-bold ${illinoisLeads ? "text-orange-400" : "text-blue-400"}`}>
+              <div className="text-xs font-bold" style={{ color: illinoisLeads ? illinoisColors.primary : opponentColors.secondary }}>
                 {pct}%
               </div>
             </div>
@@ -48,11 +52,11 @@ export function StatComparisonChart({ comparisons, opponentName = "Opponent" }: 
       </div>
       <div className="flex gap-4 mt-3">
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-orange-500" />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: illinoisColors.primary }} />
           <span className="text-xs text-zinc-500">Illinois edge</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-sm bg-blue-400" />
+          <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: opponentColors.secondary }} />
           <span className="text-xs text-zinc-500">{opponentName} edge</span>
         </div>
       </div>

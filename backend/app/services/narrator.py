@@ -324,7 +324,6 @@ def run_narrator(
         "win_prob": lambda: generate_win_probability(context),
         "stat_comparisons": lambda: generate_stat_comparisons(context, stat_comparison_table),
         "report_cards": lambda: generate_report_cards(context),
-        "charts": lambda: generate_charts(context, stat_comparison_table),
         "key_factors": lambda: generate_key_factors(context),
         "matchup_preview": lambda: generate_matchup_preview(context),
     }
@@ -385,9 +384,6 @@ def run_narrator(
                 str(item.get("explanation", "")),
             )
         )
-
-    for ch in results.get("charts") or []:
-        emit(events.chart("grouped_bars", ch["title"], ch["series"]))
 
     for factor in results.get("key_factors") or []:
         emit(events.key_factor(factor["label"], factor["detail"], factor["favors"]))

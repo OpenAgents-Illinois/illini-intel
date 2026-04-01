@@ -57,15 +57,6 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
         />
       )}
 
-      {streamState.charts.map((chart, i) => (
-        <GroupedBarChart
-          key={i}
-          chart={chart}
-          opponentName={streamState.teamHeader?.opponent_name}
-          opponentColor={streamState.teamHeader?.opponent_color}
-        />
-      ))}
-
       {streamState.keyFactors.length > 0 && (
         <KeyFactors
           factors={streamState.keyFactors}

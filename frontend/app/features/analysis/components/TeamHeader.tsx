@@ -7,15 +7,16 @@ interface TeamHeaderProps {
   recentForms?: RecentFormItem[];
 }
 
-function FormBubbles({ results, color }: { results: string[]; color: string }) {
+function FormBubbles({ results }: { results: string[] }) {
   if (results.length === 0) return null;
   return (
     <div className="flex gap-1 mt-1.5 justify-center">
       {results.map((r, i) => (
         <div
           key={i}
-          className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-          style={{ backgroundColor: r === "W" ? color : "#52525b" }}
+          className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${
+            r === "W" ? "bg-emerald-600" : "bg-red-600"
+          }`}
         >
           {r}
         </div>
@@ -46,7 +47,7 @@ export function TeamHeader({ data, running, recentForms = [] }: TeamHeaderProps)
           <div className="text-sm font-bold text-white">{illinoisName.toUpperCase()}</div>
           <div className="text-xs text-zinc-600">{illinoisMascot}</div>
         </div>
-        <FormBubbles results={illinoisForm} color={illinoisColors.primary} />
+        <FormBubbles results={illinoisForm} />
       </div>
 
       <div className="text-center">
@@ -65,7 +66,7 @@ export function TeamHeader({ data, running, recentForms = [] }: TeamHeaderProps)
           <div className="text-sm font-bold text-white">{opponentName.toUpperCase()}</div>
           <div className="text-xs text-zinc-600">{opponentMascot || "Opponent"}</div>
         </div>
-        <FormBubbles results={opponentForm} color={opponentColors.secondary} />
+        <FormBubbles results={opponentForm} />
       </div>
     </div>
   );

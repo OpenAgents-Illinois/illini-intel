@@ -5,7 +5,6 @@ import { ReportCardGrid } from "@/app/features/analysis/components/ReportCardGri
 import { MatchupPreview } from "@/app/features/analysis/components/MatchupPreview";
 import { Prediction } from "@/app/features/analysis/components/Prediction";
 import { InsightCard } from "@/app/features/analysis/components/InsightCard";
-import { RecentForm } from "@/app/features/analysis/components/RecentForm";
 import { KeyFactors } from "@/app/features/analysis/components/KeyFactors";
 import { GroupedBarChart } from "@/app/features/analysis/components/GroupedBarChart";
 import { StreamState } from "@/app/features/analysis/types";
@@ -23,7 +22,6 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
     streamState.matchupPreview !== null ||
     streamState.prediction !== null ||
     streamState.insightCards.length > 0 ||
-    streamState.recentForms.length > 0 ||
     streamState.keyFactors.length > 0 ||
     streamState.charts.length > 0;
 
@@ -36,11 +34,11 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
       )}
 
       {streamState.teamHeader !== null && (
-        <TeamHeader data={streamState.teamHeader} running={streamState.running} />
-      )}
-
-      {streamState.recentForms.length > 0 && (
-        <RecentForm forms={streamState.recentForms} />
+        <TeamHeader
+          data={streamState.teamHeader}
+          running={streamState.running}
+          recentForms={streamState.recentForms}
+        />
       )}
 
       {streamState.winProbability !== null && (

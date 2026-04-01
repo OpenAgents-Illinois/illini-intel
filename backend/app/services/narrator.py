@@ -66,7 +66,7 @@ def _normalize_stat_comparison_items(items: list[dict[str, Any]]) -> list[dict[s
 
         if _is_placeholder_text(label):
             continue
-        if _is_placeholder_text(illinois_value) and _is_placeholder_text(opponent_value):
+        if _is_placeholder_text(illinois_value) or _is_placeholder_text(opponent_value):
             continue
 
         try:

@@ -15,7 +15,7 @@ export function normalizeComparisons(comparisons: StatComparisonItem[]) {
     if (!Number.isFinite(item.illinois_pct) || item.illinois_pct < 0 || item.illinois_pct > 1) {
       return false;
     }
-    if (isPlaceholderText(item.illinois_value) && isPlaceholderText(item.opponent_value)) {
+    if (isPlaceholderText(item.illinois_value) || isPlaceholderText(item.opponent_value)) {
       return false;
     }
     if (seen.has(dedupeKey)) return false;

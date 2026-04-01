@@ -47,6 +47,10 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
         <WinProbability probability={streamState.winProbability} />
       )}
 
+      {streamState.prediction !== null && (
+        <Prediction content={streamState.prediction} winProbability={streamState.winProbability} />
+      )}
+
       {(!streamState.running || streamState.statComparisons.length > 0) && streamState.winProbability !== null && (
         <StatComparisonChart
           comparisons={streamState.statComparisons}
@@ -81,9 +85,6 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
       ))}
 
       {streamState.matchupPreview !== null && <MatchupPreview content={streamState.matchupPreview} />}
-      {streamState.prediction !== null && (
-        <Prediction content={streamState.prediction} winProbability={streamState.winProbability} />
-      )}
     </div>
   );
 }

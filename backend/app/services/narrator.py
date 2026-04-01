@@ -176,16 +176,36 @@ def generate_stat_comparisons(context: str, stat_comparison_table: list[dict[str
     )
 
 
-def generate_report_cards(context: str) -> list[dict[str, Any]]:
+def generate_report_cards(context: str, stat_comparison_table: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    if stat_comparison_table:
+        table_json = json.dumps(stat_comparison_table)
+        table_note = (
+            f"AVAILABLE STATS (these are the ONLY stats you have — do not invent any others):\n{table_json}\n\n"
+            "Each entry has 'stat', 'illinois', and 'opponent' fields.\n\n"
+        )
+    else:
+        table_note = ""
     prompt = (
         f"{context}\n\n"
-        "Grade Illinois across 4 dimensions like Offense, Defense, Shooting, Rebounding. "
-        "Base grades on the FACTUAL ESPN STATS above — do not assume stats not present. "
+        f"{table_note}"
+        "Grade Illinois only for dimensions where you have a directly relevant stat in the list above. "
+        "For example: only grade 'Scoring' if a points-per-game stat is present, only grade 'Rebounding' if a rebounds stat is present. "
+        "Do NOT create a dimension if the relevant stat is absent — omit it entirely. "
+        "If fewer than 2 dimensions have data, return an empty array []. "
         "Grades must be one of A+, A, A-, B+, B, B-, C+, C. "
-        "Each item must have: dimension, grade, stat (a real value from the ESPN stats), explanation. "
+        "Each item must have: dimension, grade, stat (copy the exact value from the available stats), explanation (1 sentence). "
         "Respond with ONLY a JSON array, no other text."
     )
-    return _load_json_array(converse_text(prompt, max_tokens=1024))
+    raw = _load_json_array(converse_text(prompt, max_tokens=1024))
+    # Filter out any card where stat is missing, null, or a placeholder
+    valid = []
+    null_values = {"none", "-", "", "null", "n/a", "unknown"}
+    for item in raw:
+        stat_val = str(item.get("stat") or "").strip().lower()
+        if stat_val in null_values:
+            continue
+        valid.append(item)
+    return valid
 
 
 def generate_matchup_preview(context: str) -> str:
@@ -323,7 +343,7 @@ def run_narrator(
         "header": lambda: generate_team_header(context),
         "win_prob": lambda: generate_win_probability(context),
         "stat_comparisons": lambda: generate_stat_comparisons(context, stat_comparison_table),
-        "report_cards": lambda: generate_report_cards(context),
+        "report_cards": lambda: generate_report_cards(context, stat_comparison_table),
         "key_factors": lambda: generate_key_factors(context),
         "matchup_preview": lambda: generate_matchup_preview(context),
     }
@@ -375,7 +395,11 @@ def run_narrator(
             )
         )
 
+    _null_stat_values = {"none", "-", "", "null", "n/a", "unknown"}
     for item in results.get("report_cards") or []:
+        stat_val = str(item.get("stat") or "").strip().lower()
+        if stat_val in _null_stat_values:
+            continue
         emit(
             events.report_card(
                 str(item.get("dimension", "Dimension")),

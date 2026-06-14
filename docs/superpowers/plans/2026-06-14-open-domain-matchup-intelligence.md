@@ -571,7 +571,8 @@ git commit -m "feat(events): symmetric team_a/team_b contract, drop chart event"
 
 Helper map for this task:
 - **Delete:** `_resolve_matchup_event`, `_event_match_score`, `_event_labels`, `_candidate_seasons`, `_extract_goal_years`, `ROUND_KEYWORDS`, `_opponent_competitor`, `_opponent_team_id`, `_build_team_header`, `_team_display_fields`.
-- **Keep (drop Illinois defaults only):** `_coerce_rank`, `_extract_competitor`, `_extract_ap_rank`, `_season_from_date`, `_competitors_from_event`, `_competitor_for_team`, `_derive_game_context`, `_rank_from_event`, `_extract_recent_form`, `_slim_team`, `_extract_stat_map`, `_build_stat_comparison_table` (rename its row keys to `team_a`/`team_b`).
+- **Keep (drop Illinois defaults only):** `_coerce_rank`, `_extract_competitor`, `_extract_ap_rank`, `_season_from_date`, `_competitors_from_event`, `_competitor_for_team`, `_derive_game_context`, `_rank_from_event`, `_extract_recent_form`, `_extract_stat_map`, `_build_stat_comparison_table` (rename its row keys to `team_a`/`team_b`).
+- **Replace:** `_slim_team` (operated on raw ESPN payloads) → `_slim_team_by_name(team_ref)` which takes a `TeamRef`. The new `_scout_summary` uses `_slim_team_by_name`, so the old `_slim_team` is removed (not carried forward as dead code).
 - **Add:** `_team_ref(league, team_payload, team_id, event)`, `_find_head_to_head(schedule, opponent_id)`, `_scout(league, request, emit) -> MatchupContext`, and a rewritten `run(request, emit)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -596,11 +597,21 @@ class RecordingEmitter:
 
 
 def _illinois_payload():
-    return {"team": {"id": "356", "shortDisplayName": "Illinois", "name": "Fighting Illini", "color": "ff5f05"}}
+    return {
+        "team": {"id": "356", "shortDisplayName": "Illinois", "name": "Fighting Illini", "color": "ff5f05"},
+        "nextEvent": [{"competitions": [{"competitors": [
+            {"team": {"id": "356"}, "curatedRank": {"current": 8}},
+        ]}]}],
+    }
 
 
 def _uconn_payload():
-    return {"team": {"id": "41", "shortDisplayName": "UConn", "name": "Huskies", "color": "0c2340"}}
+    return {
+        "team": {"id": "41", "shortDisplayName": "UConn", "name": "Huskies", "color": "0c2340"},
+        "nextEvent": [{"competitions": [{"competitors": [
+            {"team": {"id": "41"}, "curatedRank": {"current": 5}},
+        ]}]}],
+    }
 
 
 def _schedule_with_h2h():
@@ -636,6 +647,9 @@ def test_scout_builds_context_with_neutral_fallback_when_no_game(monkeypatch) ->
     assert ctx.team_b.name == "UConn"
     assert ctx.head_to_head_event is None
     assert ctx.game_context == "NCAA Men's Basketball Matchup"
+    # With no head-to-head event, ranks fall back to each team's standalone curated rank (spec §2.3)
+    assert ctx.team_a.rank == 8
+    assert ctx.team_b.rank == 5
 
 
 def test_run_emits_done_when_scout_fails(monkeypatch) -> None:
@@ -844,7 +858,44 @@ git commit -m "feat(pipeline): resolve MatchupContext deterministically, drop go
 - Modify: `backend/app/services/narrator.py`
 - Test: `backend/tests/test_narrator_stats.py`, `test_narrator_json.py`, `test_narrator_prediction.py` (rename fields)
 
-- [ ] **Step 1: Update the failing tests** — in all three narrator test files, replace `illinois_value`→`team_a_value`, `opponent_value`→`team_b_value`, `illinois_pct`→`team_a_pct`. Add to `test_narrator_stats.py`:
+- [ ] **Step 1: Update the failing tests.**
+
+  (a) In `test_narrator_stats.py` and `test_narrator_prediction.py`, replace the stat fields `illinois_value`→`team_a_value`, `opponent_value`→`team_b_value`, `illinois_pct`→`team_a_pct`.
+
+  (b) In `test_narrator_json.py`, rewrite `test_merge_team_header_prefers_structured_ranks` to the new `team_a_*`/`team_b_*` keys (the current version uses `illinois_rank`/`illinois_name`/`illinois_mascot`/`opponent_name`/`opponent_mascot`/`opponent_rank`, which `_merge_team_header` no longer produces after this task — leaving it would fail the Task 7 command):
+
+```python
+def test_merge_team_header_prefers_structured_ranks() -> None:
+    generated = {
+        "team_a_rank": None,
+        "team_a_name": "Illinois",
+        "team_a_mascot": "Fighting Illini",
+        "team_b_name": "Connecticut",
+        "team_b_mascot": "Huskies",
+        "team_b_rank": None,
+        "game_context": "Final Four",
+    }
+    structured = {
+        "team_a_rank": 3,
+        "team_a_name": "Illinois",
+        "team_a_mascot": "Fighting Illini",
+        "team_b_name": "UConn",
+        "team_b_mascot": "Huskies",
+        "team_b_rank": 2,
+    }
+
+    assert _merge_team_header(generated, structured) == {
+        "team_a_rank": 3,
+        "team_a_name": "Illinois",
+        "team_a_mascot": "Fighting Illini",
+        "team_b_name": "UConn",
+        "team_b_mascot": "Huskies",
+        "team_b_rank": 2,
+        "game_context": "Final Four",
+    }
+```
+
+  (c) Add to `test_narrator_stats.py`:
 
 ```python
 def test_run_narrator_emits_win_probability_with_team_a_field(monkeypatch) -> None:
@@ -1112,7 +1163,8 @@ git commit -m "feat(api): structured /analyze + /leagues + /teams endpoints"
 
 **Files:**
 - Modify: `frontend/app/features/analysis/types.ts`, `state.ts`
-- Test: `frontend/app/features/analysis/__tests__/state.test.ts` (rewrite), `statComparison.test.ts`, `predictionText.test.ts` (rename fields)
+- Test: `frontend/app/features/analysis/__tests__/state.test.ts` (rewrite), `statComparison.test.ts` (rename `illinois_*`/`opponent_*` → `team_a_*`/`team_b_*` fields)
+- Leave alone: `predictionText.test.ts` and `richText.test.ts` reference "Illinois" only inside literal prediction/markdown strings, not event field names — they need **no** changes. Do not edit their string literals.
 
 - [ ] **Step 1: Rewrite `state.test.ts`** to use `team_a_*`/`team_b_*`:
 
@@ -1248,7 +1300,7 @@ Run (from `frontend/`): `npx vitest run app/features/analysis/__tests__/winProba
   - `ReportCardGrid.tsx`: group cards by `team` (a `team_a` column/section and a `team_b` one).
   - `RecentForm.tsx`: unchanged data (keyed by team name) — verify it still compiles.
   - `teamColors.ts`: keep `getColorsForTeam(name?: string, espnHex?: string)` that prefers the ESPN hex and falls back to a single neutral default; drop the per-school `TEAM_COLOR_MAP` and the `getIllinoisColors`/`getOpponentColors` Illinois-specific exports (replace call sites).
-  - `BiReportPanel.tsx`: remove any `charts`/`GroupedBarChart` usage; render the renamed components.
+  - `BiReportPanel.tsx`: this is the parent that wires every child's props, so update all call sites. Remove the `GroupedBarChart` import, the `streamState.charts.length > 0` term in `hasOutput`, and any `charts` rendering. Rewire the children to the new symmetric signatures: `<WinProbability>` now takes `team_a_probability` (from `streamState.winProbability`) plus `team_a_name`/`team_a_color`/`team_b_name`/`team_b_color` from `streamState.teamHeader` instead of `probability`/`opponentName`/`opponentColor`; `<StatComparisonChart>` and `<KeyFactors>` likewise take `team_a_*`/`team_b_*` name+color props instead of `opponentName`/`opponentColor`. The exact prop names must match each component's new signature defined in this task — if `npm run build` reports a prop type error, fix the call site here.
   - Delete `GroupedBarChart.tsx`.
 
 - [ ] **Step 4: Run the full frontend suite + build, expect pass.**

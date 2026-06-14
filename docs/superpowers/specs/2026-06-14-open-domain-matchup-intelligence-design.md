@@ -137,7 +137,7 @@ Keeps only infra config: `AWS_REGION`, `BEDROCK_MODEL_ID`, and the new defaults 
 
 ### Kept (already team-agnostic)
 
-`_extract_recent_form`, `_extract_stat_map`, `_competitor_for_team`, `_competitors_from_event`, `_slim_team`, `_coerce_rank`, `_rank_from_event`, `_extract_ap_rank`, `_extract_competitor`, `_derive_game_context`, `_season_from_date` — they already take a `team_id` (or no team at all); they only lose Illinois defaults. (`_season_from_date` is retained to compute the current season for the schedule fetches, even though its old caller `_candidate_seasons` is deleted.)
+`_extract_recent_form`, `_extract_stat_map`, `_competitor_for_team`, `_competitors_from_event`, `_coerce_rank`, `_rank_from_event`, `_extract_ap_rank`, `_extract_competitor`, `_derive_game_context`, `_season_from_date` — they already take a `team_id` (or no team at all); they only lose Illinois defaults. (`_season_from_date` is retained to compute the current season for the schedule fetches, even though its old caller `_candidate_seasons` is deleted.) `_slim_team` (operated on raw ESPN payloads) is **replaced** by a `_slim_team_by_name(team_ref)` that takes a `TeamRef`, since the scout summary now works from the resolved `MatchupContext` rather than raw payloads.
 
 ### Rewritten / absorbed into `MatchupContext` construction
 

@@ -104,14 +104,15 @@ The hardcoded basketball base URL is replaced by league-path injection:
 
 - `fetch_team(league, team_id)`
 - `fetch_schedule(league, team_id, season)`
-- `fetch_scoreboard(league)`
 - `fetch_teams(league)` — **new**; ESPN's `/teams` listing, used to populate the frontend selectors.
+
+`fetch_scoreboard` is **removed**: its only consumer today is the deleted goal-parsing heuristic (`_resolve_matchup_event` scans `schedules + [scoreboard]`). The new deterministic head-to-head resolution reads only the two teams' schedules, so the scoreboard is no longer needed.
 
 `ESPN_BASE_URL` is rebuilt per call as `https://site.api.espn.com/apis/site/v2/sports/{league.path}`.
 
 ### `config.py`
 
-Keeps only infra config: AWS region, Bedrock model, and the new defaults `DEFAULT_LEAGUE = "mens-college-basketball"`, `DEFAULT_TEAM_A = "356"` (Illinois), `DEFAULT_TEAM_B = "41"` (UConn). The standalone `ILLINOIS_TEAM_ID` / `UCONN_TEAM_ID` / `ESPN_BASE_URL` constants move out / are absorbed.
+Keeps only infra config: `AWS_REGION`, `BEDROCK_MODEL_ID`, and the new defaults `DEFAULT_LEAGUE = "mens-college-basketball"`, `DEFAULT_TEAM_A = "356"` (Illinois), `DEFAULT_TEAM_B = "41"` (UConn). The standalone `ILLINOIS_TEAM_ID` / `UCONN_TEAM_ID` / `ESPN_BASE_URL` constants move out / are absorbed. `DEFAULT_GOAL` is **deleted** (the `?goal=` param is gone), along with its now-dangling import in `routes.py`.
 
 ---
 
@@ -136,7 +137,15 @@ Keeps only infra config: AWS region, Bedrock model, and the new defaults `DEFAUL
 
 ### Kept (already team-agnostic)
 
-`_extract_recent_form`, `_extract_stat_map`, `_competitor_for_team`, `_competitors_from_event`, `_slim_team`, `_coerce_rank`, `_rank_from_event`, `_extract_ap_rank`, `_derive_game_context` — they already take a `team_id`; they only lose Illinois defaults.
+`_extract_recent_form`, `_extract_stat_map`, `_competitor_for_team`, `_competitors_from_event`, `_slim_team`, `_coerce_rank`, `_rank_from_event`, `_extract_ap_rank`, `_extract_competitor`, `_derive_game_context`, `_season_from_date` — they already take a `team_id` (or no team at all); they only lose Illinois defaults. (`_season_from_date` is retained to compute the current season for the schedule fetches, even though its old caller `_candidate_seasons` is deleted.)
+
+### Rewritten / absorbed into `MatchupContext` construction
+
+These are Illinois/UConn-coupled today and cannot survive the symmetric rewrite unchanged:
+
+- `_build_team_header` → **absorbed**. The team header is now assembled from the two `TeamRef`s in `MatchupContext` (built symmetrically for team_a and team_b) rather than from an Illinois-anchored helper.
+- `_team_display_fields` → **generalized** into a small `_team_ref(team_payload, event)` helper that extracts `(name, mascot, color, rank)` for *any* team; called once per side to build each `TeamRef`.
+- `_opponent_competitor`, `_opponent_team_id` → **deleted**. There is no "opponent" concept; head-to-head resolution scans team A's schedule for team B's id directly, and ranks/competitors are read per-team via the kept `_competitor_for_team`.
 
 ### Analyst phase
 
@@ -165,13 +174,17 @@ The SSE event shape is the backend↔frontend contract. Every `illinois_*` / `op
 
 The `chart` event, `narrator.generate_charts`, and the frontend `charts` plumbing are emitted nowhere today. They are deleted as part of this rename to avoid confusion.
 
+### Narrator inputs (the Section 2 ↔ Section 3 seam)
+
+To keep the narrator decoupled from the domain model, the pipeline does **not** pass the whole `MatchupContext` into `run_narrator`. Instead it derives the same plain-data arguments the narrator takes today, renamed: `run_narrator(scout_summary, analyst_summary, emit, team_header: dict, stat_table: list, team_a_name: str, team_b_name: str)`. The `team_header` dict and `stat_table` are projected from `MatchupContext` in the pipeline; `team_a_name`/`team_b_name` are threaded in so prompts can name the teams. The narrator's interface stays plain dicts/lists, so it remains independently testable without constructing a `MatchupContext`.
+
 ### Narrator (`narrator.py`)
 
 Structure is unchanged — 7 parallel generators + a dependent `prediction`. Changes:
-- Every prompt swaps "Illinois"/"the Illini" for the two real team names, sourced from `MatchupContext`.
+- Every prompt swaps "Illinois"/"the Illini" for the two real team names (`team_a_name`/`team_b_name`).
 - All anti-hallucination scaffolding stays verbatim (FACTUAL STATS block, placeholder filtering, pct clamping, dedup) — it is orthogonal to team identity and is the project's strongest asset.
 - `generate_report_cards` grades both teams (each card tagged `team_a`/`team_b`).
-- `generate_win_probability` returns P(team_a); team_b is derived as `100 − team_a`.
+- `generate_win_probability` returns a single P(team_a) float. The `win_probability` event keeps its current arity — exactly one field, renamed `probability → team_a_probability`. The backend does **not** emit a team_b value; the frontend `WinProbability` component derives team_b's share as `100 − team_a_probability` (it already renders both sides).
 - `_normalize_stat_comparison_items` and `_merge_team_header` get the field renames.
 
 ---
@@ -223,7 +236,7 @@ Frontend header "Illini Intel / Fighting Illini Basketball BI" → generic ("Mat
 
 - `leagues.py`: every entry has a valid sport/path.
 - Scout: head-to-head **found** and **no-game fallback** (the main new branch).
-- Narrator: existing JSON/stats/prediction tests get `team_a`/`team_b` renames; add tests that report cards carry both teams and that `team_b_probability == 100 − team_a_probability`.
+- Narrator: existing JSON/stats/prediction tests get `team_a`/`team_b` renames; add a test that report cards can carry both teams (a `team_a` card and a `team_b` card). The `win_probability` event itself is asserted to carry the single `team_a_probability` field; the `100 − team_a` derivation is a **frontend** `WinProbability` unit test, not a backend assertion.
 - ESPN client: `fetch_teams` + league-path injection (mock httpx).
 - Frontend: `state.test.ts` / `statComparison.test.ts` / `predictionText.test.ts` updated for renamed fields; `normalizeTeamHeader` neutral defaults tested.
 - Fixtures: keep an Illinois-vs-opponent fixture (regression guard) **and** add a non-college fixture (e.g. an NBA pair) to prove cross-league parameterization works.
@@ -236,3 +249,5 @@ Frontend header "Illini Intel / Fighting Illini Basketball BI" → generic ("Mat
 - Renaming the repo, the `illini_intel_backend` package, or `docs/`.
 - Persistence, scheduling, alerting, or any "continuous monitoring" — the tool stays request-driven and stateless.
 - Reviving the removed `chart` event.
+
+**Acknowledged drift:** `CLAUDE.md` and `README.md` describe "Fighting Illini" framing and the old event-field names. They are not rewritten here (doc churn, YAGNI), so they will be stale after this change. If desired, refreshing the `## Event contract` section of `CLAUDE.md` is a cheap follow-up — but it is not a blocker for implementation.

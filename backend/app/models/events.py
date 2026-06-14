@@ -28,53 +28,44 @@ def prediction(content: str) -> dict[str, Any]:
 
 
 def team_header(
-    illinois_rank: int | None,
-    illinois_name: str,
-    illinois_mascot: str,
-    opponent_name: str,
-    opponent_mascot: str,
-    opponent_rank: int | None,
+    team_a_rank: int | None,
+    team_a_name: str,
+    team_a_mascot: str,
+    team_b_name: str,
+    team_b_mascot: str,
+    team_b_rank: int | None,
     game_context: str,
-    illinois_color: str | None = None,
-    opponent_color: str | None = None,
+    team_a_color: str | None = None,
+    team_b_color: str | None = None,
 ) -> dict[str, Any]:
     return {
         "type": "team_header",
-        "illinois_rank": illinois_rank,
-        "illinois_name": illinois_name,
-        "illinois_mascot": illinois_mascot,
-        "illinois_color": illinois_color,
-        "opponent_name": opponent_name,
-        "opponent_mascot": opponent_mascot,
-        "opponent_rank": opponent_rank,
-        "opponent_color": opponent_color,
+        "team_a_rank": team_a_rank,
+        "team_a_name": team_a_name,
+        "team_a_mascot": team_a_mascot,
+        "team_a_color": team_a_color,
+        "team_b_name": team_b_name,
+        "team_b_mascot": team_b_mascot,
+        "team_b_rank": team_b_rank,
+        "team_b_color": team_b_color,
         "game_context": game_context,
     }
 
 
-def stat_comparison(
-    label: str,
-    illinois_value: str,
-    opponent_value: str,
-    illinois_pct: float,
-) -> dict[str, Any]:
+def stat_comparison(label: str, team_a_value: str, team_b_value: str, team_a_pct: float) -> dict[str, Any]:
     return {
         "type": "stat_comparison",
         "label": label,
-        "illinois_value": illinois_value,
-        "opponent_value": opponent_value,
-        "illinois_pct": illinois_pct,
+        "team_a_value": team_a_value,
+        "team_b_value": team_b_value,
+        "team_a_pct": team_a_pct,
     }
 
 
-def report_card(
-    dimension: str,
-    grade: str,
-    stat: str,
-    explanation: str,
-) -> dict[str, Any]:
+def report_card(team: str, dimension: str, grade: str, stat: str, explanation: str) -> dict[str, Any]:
     return {
         "type": "report_card",
+        "team": team,
         "dimension": dimension,
         "grade": grade,
         "stat": stat,
@@ -82,13 +73,8 @@ def report_card(
     }
 
 
-def win_probability(probability: float) -> dict[str, Any]:
-    return {"type": "win_probability", "probability": probability}
-
-
-def chart(chart_type: str, title: str, series: list[dict[str, Any]]) -> dict[str, Any]:
-    """Generic chart event. chart_type: 'grouped_bars'. series: list of {label, illinois, opponent}."""
-    return {"type": "chart", "chart_type": chart_type, "title": title, "series": series}
+def win_probability(team_a_probability: float) -> dict[str, Any]:
+    return {"type": "win_probability", "team_a_probability": team_a_probability}
 
 
 def recent_form(team: str, results: list[str]) -> dict[str, Any]:

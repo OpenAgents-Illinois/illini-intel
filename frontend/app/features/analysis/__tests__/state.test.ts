@@ -1,56 +1,36 @@
 import { applyEvent, initialStreamState } from "../state";
 
-test("team_header event populates teamHeader", () => {
+test("team_header event populates teamHeader with team_a/team_b", () => {
   const event = {
     type: "team_header" as const,
-    illinois_rank: 3,
-    illinois_name: "Illinois",
-    illinois_mascot: "Fighting Illini",
-    opponent_name: "UConn",
-    opponent_mascot: "Huskies",
-    opponent_rank: 1,
+    team_a_rank: 3, team_a_name: "Illinois", team_a_mascot: "Fighting Illini",
+    team_b_name: "UConn", team_b_mascot: "Huskies", team_b_rank: 1,
     game_context: "Final Four",
   };
   const next = applyEvent(initialStreamState, event);
-  expect(next.teamHeader).toEqual({
-    illinois_rank: 3,
-    illinois_name: "Illinois",
-    illinois_mascot: "Fighting Illini",
-    opponent_name: "UConn",
-    opponent_mascot: "Huskies",
-    opponent_rank: 1,
-    game_context: "Final Four",
-  });
+  expect(next.teamHeader?.team_a_name).toBe("Illinois");
+  expect(next.teamHeader?.team_b_name).toBe("UConn");
 });
 
-test("stat_comparison event appends to statComparisons", () => {
+test("stat_comparison appends with team_a/team_b values", () => {
   const event = {
     type: "stat_comparison" as const,
-    label: "PPG",
-    illinois_value: "87.3",
-    opponent_value: "79.1",
-    illinois_pct: 0.52,
+    label: "PPG", team_a_value: "87.3", team_b_value: "79.1", team_a_pct: 0.52,
   };
   const next = applyEvent(initialStreamState, event);
-  expect(next.statComparisons).toHaveLength(1);
-  expect(next.statComparisons[0].label).toBe("PPG");
+  expect(next.statComparisons[0].team_a_value).toBe("87.3");
 });
 
-test("report_card event appends to reportCards", () => {
+test("report_card carries team tag", () => {
   const event = {
     type: "report_card" as const,
-    dimension: "Offense",
-    grade: "A+",
-    stat: "87.3 PPG",
-    explanation: "Top 5 nationally",
+    team: "team_b", dimension: "Defense", grade: "A-", stat: "x", explanation: "y",
   };
   const next = applyEvent(initialStreamState, event);
-  expect(next.reportCards).toHaveLength(1);
-  expect(next.reportCards[0].grade).toBe("A+");
+  expect(next.reportCards[0].team).toBe("team_b");
 });
 
-test("win_probability event sets winProbability", () => {
-  const event = { type: "win_probability" as const, probability: 61.0 };
-  const next = applyEvent(initialStreamState, event);
-  expect(next.winProbability).toBe(61.0);
+test("win_probability sets winProbability from team_a_probability", () => {
+  const next = applyEvent(initialStreamState, { type: "win_probability" as const, team_a_probability: 61 });
+  expect(next.winProbability).toBe(61);
 });

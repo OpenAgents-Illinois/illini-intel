@@ -8,19 +8,26 @@ interface UseAgentStreamProps {
   onStateChange: (state: StreamState) => void;
 }
 
+export interface MatchupSelection {
+  league: string;
+  teamA: string;
+  teamB: string;
+}
+
 export function useAgentStream({ onStateChange }: UseAgentStreamProps) {
   const [state, setState] = useState<StreamState>(initialStreamState);
 
   const start = useCallback(
-    (goal: string) => {
+    (selection: MatchupSelection) => {
       const nextState: StreamState = { ...initialStreamState, running: true };
       setState(nextState);
       onStateChange(nextState);
 
+      const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? "";
       const url =
-        (process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? "") +
-        "/analyze?goal=" +
-        encodeURIComponent(goal);
+        `${base}/analyze?league=${encodeURIComponent(selection.league)}` +
+        `&team_a=${encodeURIComponent(selection.teamA)}` +
+        `&team_b=${encodeURIComponent(selection.teamB)}`;
 
       const eventSource = new EventSource(url);
 

@@ -13,29 +13,29 @@ def test_extract_json_array_handles_code_fences() -> None:
 
 def test_merge_team_header_prefers_structured_ranks() -> None:
     generated = {
-        'illinois_rank': None,
-        'illinois_name': 'Illinois',
-        'illinois_mascot': 'Fighting Illini',
-        'opponent_name': 'Connecticut',
-        'opponent_mascot': 'Huskies',
-        'opponent_rank': None,
+        'team_a_rank': None,
+        'team_a_name': 'Illinois',
+        'team_a_mascot': 'Fighting Illini',
+        'team_b_name': 'Connecticut',
+        'team_b_mascot': 'Huskies',
+        'team_b_rank': None,
         'game_context': 'Final Four',
     }
     structured = {
-        'illinois_rank': 3,
-        'illinois_name': 'Illinois',
-        'illinois_mascot': 'Fighting Illini',
-        'opponent_name': 'UConn',
-        'opponent_mascot': 'Huskies',
-        'opponent_rank': 2,
+        'team_a_rank': 3,
+        'team_a_name': 'Illinois',
+        'team_a_mascot': 'Fighting Illini',
+        'team_b_name': 'UConn',
+        'team_b_mascot': 'Huskies',
+        'team_b_rank': 2,
     }
 
     assert _merge_team_header(generated, structured) == {
-        'illinois_rank': 3,
-        'illinois_name': 'Illinois',
-        'illinois_mascot': 'Fighting Illini',
-        'opponent_name': 'UConn',
-        'opponent_mascot': 'Huskies',
-        'opponent_rank': 2,
+        'team_a_rank': 3,
+        'team_a_name': 'Illinois',
+        'team_a_mascot': 'Fighting Illini',
+        'team_b_name': 'UConn',
+        'team_b_mascot': 'Huskies',
+        'team_b_rank': 2,
         'game_context': 'Final Four',
     }

@@ -61,16 +61,16 @@ def _normalize_stat_comparison_items(items: list[dict[str, Any]]) -> list[dict[s
 
     for item in items:
         label = str(item.get("label", "")).strip()
-        illinois_value = str(item.get("illinois_value", "")).strip()
-        opponent_value = str(item.get("opponent_value", "")).strip()
+        team_a_value = str(item.get("team_a_value", "")).strip()
+        team_b_value = str(item.get("team_b_value", "")).strip()
 
         if _is_placeholder_text(label):
             continue
-        if _is_placeholder_text(illinois_value) or _is_placeholder_text(opponent_value):
+        if _is_placeholder_text(team_a_value) or _is_placeholder_text(team_b_value):
             continue
 
         try:
-            pct = float(item.get("illinois_pct", 0.5))
+            pct = float(item.get("team_a_pct", 0.5))
         except (TypeError, ValueError):
             continue
 
@@ -85,9 +85,9 @@ def _normalize_stat_comparison_items(items: list[dict[str, Any]]) -> list[dict[s
         normalized_items.append(
             {
                 "label": label,
-                "illinois_value": illinois_value or "-",
-                "opponent_value": opponent_value or "-",
-                "illinois_pct": pct,
+                "team_a_value": team_a_value or "-",
+                "team_b_value": team_b_value or "-",
+                "team_a_pct": pct,
             }
         )
 
@@ -97,7 +97,7 @@ def _normalize_stat_comparison_items(items: list[dict[str, Any]]) -> list[dict[s
 def generate_insight_card(context: str) -> dict[str, Any]:
     prompt = (
         f"{context}\n\n"
-        "Extract 4-6 key Illinois basketball insights from the context. "
+        "Extract 4-6 key insights about this matchup from the context. "
         "Any numeric values (stats, records, ranks) must come from the FACTUAL ESPN STATS section above — do not invent numbers. "
         "Respond with ONLY a JSON object, no other text:\n"
         '{"title": "<short title>", "data": {"key1": "value1", "key2": "value2"}}'
@@ -106,7 +106,7 @@ def generate_insight_card(context: str) -> dict[str, Any]:
     return _load_json_object(
         raw,
         {
-            "title": "Illinois Basketball Insights",
+            "title": "Matchup Insights",
             "data": {"summary": raw.strip() or "No structured insights returned."},
         },
     )
@@ -115,22 +115,23 @@ def generate_insight_card(context: str) -> dict[str, Any]:
 def generate_team_header(context: str) -> dict[str, Any]:
     prompt = (
         f"{context}\n\n"
-        "Extract team matchup info. Respond with ONLY a JSON object, no other text:\n"
-        '{"illinois_rank": <number or null>, "illinois_name": "<school>", "illinois_mascot": "<mascot>", '
-        '"opponent_name": "<school>", "opponent_mascot": "<mascot>", '
-        '"opponent_rank": <number or null>, "game_context": "<e.g. Regular Season, Final Four>"}'
+        "Extract team matchup info. team_a and team_b are named in the context above. "
+        "Respond with ONLY a JSON object, no other text:\n"
+        '{"team_a_rank": <number or null>, "team_a_name": "<team_a school>", "team_a_mascot": "<mascot>", '
+        '"team_b_name": "<team_b school>", "team_b_mascot": "<mascot>", '
+        '"team_b_rank": <number or null>, "game_context": "<e.g. Regular Season, Final Four>"}'
     )
     raw = converse_text(prompt, max_tokens=384)
     return _load_json_object(
         raw,
         {
-            "illinois_rank": None,
-            "illinois_name": "Illinois",
-            "illinois_mascot": "Fighting Illini",
-            "opponent_name": "Opponent",
-            "opponent_mascot": "",
-            "opponent_rank": None,
-            "game_context": "Illinois Basketball",
+            "team_a_rank": None,
+            "team_a_name": "Team A",
+            "team_a_mascot": "",
+            "team_b_name": "Team B",
+            "team_b_mascot": "",
+            "team_b_rank": None,
+            "game_context": "Matchup",
         },
     )
 
@@ -139,7 +140,7 @@ def generate_win_probability(context: str) -> float:
     prompt = (
         f"{context}\n\n"
         "Based solely on the scout data, analyst findings, and FACTUAL ESPN STATS above, "
-        "estimate the Illinois win probability as a float from 0 to 100. "
+        "estimate team_a's win probability as a float from 0 to 100. "
         "Ground the estimate in the actual stat advantages and disadvantages shown — do not guess. "
         'Respond with ONLY a JSON object: {"probability": <float 0-100>}'
     )
@@ -157,8 +158,8 @@ def generate_stat_comparisons(context: str, stat_comparison_table: list[dict[str
         table_json = json.dumps(stat_comparison_table)
         table_note = (
             f"AVAILABLE STATS (use ONLY these — do not invent values):\n{table_json}\n\n"
-            "Each entry has 'stat', 'illinois', and 'opponent' fields from ESPN. "
-            "illinois_pct must be computed from the two real values (illinois / (illinois + opponent)), clamped to [0.0, 1.0].\n\n"
+            "Each entry has 'stat', 'team_a', and 'team_b' fields from ESPN. "
+            "team_a_pct must be computed from the two real values (team_a / (team_a + team_b)), clamped to [0.0, 1.0].\n\n"
         )
     else:
         table_note = ""
@@ -169,7 +170,7 @@ def generate_stat_comparisons(context: str, stat_comparison_table: list[dict[str
         "Use ONLY real values from the table — never invent numbers. "
         "Omit any stat where either value is missing or non-numeric. "
         "Use the exact stat name as the label. "
-        'Respond with ONLY a JSON array. Each element: "label" (string), "illinois_value" (string), "opponent_value" (string), "illinois_pct" (float 0.0-1.0).'
+        'Respond with ONLY a JSON array. Each element: "label" (string), "team_a_value" (string), "team_b_value" (string), "team_a_pct" (float 0.0-1.0).'
     )
     return _normalize_stat_comparison_items(
         _load_json_array(converse_text(prompt, max_tokens=1024))
@@ -181,28 +182,30 @@ def generate_report_cards(context: str, stat_comparison_table: list[dict[str, An
         table_json = json.dumps(stat_comparison_table)
         table_note = (
             f"AVAILABLE STATS (these are the ONLY stats you have — do not invent any others):\n{table_json}\n\n"
-            "Each entry has 'stat', 'illinois', and 'opponent' fields.\n\n"
+            "Each entry has 'stat', 'team_a', and 'team_b' fields.\n\n"
         )
     else:
         table_note = ""
     prompt = (
         f"{context}\n\n"
         f"{table_note}"
-        "Grade Illinois only for dimensions where you have a directly relevant stat in the list above. "
+        "Grade BOTH team_a and team_b for dimensions where you have a directly relevant stat in the list above. "
         "For example: only grade 'Scoring' if a points-per-game stat is present, only grade 'Rebounding' if a rebounds stat is present. "
         "Do NOT create a dimension if the relevant stat is absent — omit it entirely. "
-        "If fewer than 2 dimensions have data, return an empty array []. "
         "Grades must be one of A+, A, A-, B+, B, B-, C+, C. "
-        "Each item must have: dimension, grade, stat (copy the exact value from the available stats), explanation (1 sentence). "
+        "Each item must have: team ('team_a' or 'team_b'), dimension, grade, stat (copy the exact value from the available stats), explanation (1 sentence). "
         "Respond with ONLY a JSON array, no other text."
     )
     raw = _load_json_array(converse_text(prompt, max_tokens=1024))
-    # Filter out any card where stat is missing, null, or a placeholder
+    # Filter out any card where stat is missing/placeholder or team is not team_a/team_b
     valid = []
     null_values = {"none", "-", "", "null", "n/a", "unknown"}
     for item in raw:
         stat_val = str(item.get("stat") or "").strip().lower()
         if stat_val in null_values:
+            continue
+        team_val = str(item.get("team") or "").strip().lower()
+        if team_val not in {"team_a", "team_b"}:
             continue
         valid.append(item)
     return valid
@@ -211,7 +214,7 @@ def generate_report_cards(context: str, stat_comparison_table: list[dict[str, An
 def generate_matchup_preview(context: str) -> str:
     prompt = (
         f"{context}\n\n"
-        "Write a thorough matchup preview for serious Illinois basketball fans. "
+        "Write a thorough matchup preview for serious fans of these two teams. "
         "Use 3 short paragraphs with 2-3 sentences each and separate each paragraph with a blank line. "
         "Any statistics you cite must come from the FACTUAL ESPN STATS section — do not invent percentages, averages, or rankings. "
         "Include rotation context, recent form, rebounding or turnover dynamics, and matchup angles supported by the data. "
@@ -220,51 +223,14 @@ def generate_matchup_preview(context: str) -> str:
     return converse_text(prompt, max_tokens=512)
 
 
-def generate_charts(context: str, stat_comparison_table: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
-    if stat_comparison_table:
-        table_json = json.dumps(stat_comparison_table)
-        table_note = (
-            f"AVAILABLE STATS (use ONLY these — do not invent values):\n{table_json}\n\n"
-            "Each entry has 'stat', 'illinois', and 'opponent' fields with real ESPN values.\n\n"
-        )
-    else:
-        table_note = ""
-    prompt = (
-        f"{context}\n\n"
-        f"{table_note}"
-        "Group the available stats above into 2-3 meaningful chart groups (e.g. Scoring, Rebounding, Shooting). "
-        "Use ONLY stat names and values from the table above — never invent numbers. "
-        "Each series item must use the exact 'illinois' and 'opponent' values from the table. "
-        'Respond with ONLY a JSON array. Each element: {"title": "<chart title>", "series": [{"label": "<stat name>", "illinois": "<value from table>", "opponent": "<value from table>"}, ...]}'
-    )
-    raw = converse_text(prompt, max_tokens=1024)
-    items = _load_json_array(raw)
-    charts: list[dict[str, Any]] = []
-    for item in items:
-        title = str(item.get("title", "")).strip()
-        series = item.get("series", [])
-        if not title or not isinstance(series, list) or not series:
-            continue
-        valid_series = []
-        for s in series:
-            label = str(s.get("label", "")).strip()
-            illinois = str(s.get("illinois", "")).strip()
-            opponent = str(s.get("opponent", "")).strip()
-            if label and illinois and opponent and not _is_placeholder_text(illinois) and not _is_placeholder_text(opponent):
-                valid_series.append({"label": label, "illinois": illinois, "opponent": opponent})
-        if valid_series:
-            charts.append({"title": title, "series": valid_series})
-    return charts[:3]
-
-
 def generate_key_factors(context: str) -> list[dict[str, Any]]:
     prompt = (
         f"{context}\n\n"
         "Identify 3-4 key swing factors drawn only from the context and FACTUAL ESPN STATS above. "
         "Any numbers cited in the detail must come from the FACTUAL ESPN STATS — do not invent figures. "
-        "Every factor must clearly favor one team — pick a side, do not use neutral. "
-        'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "illinois" or "opponent"}. '
-        "Labels must be specific (e.g. 'Illinois Rebounding Edge') — never generic like 'Key Factor'."
+        "Every factor must clearly favor team_a or team_b — pick a side, do not be neutral. "
+        'Respond with ONLY a JSON array. Each element: {"label": "<specific factor name>", "detail": "<1 sentence explanation>", "favors": "team_a" or "team_b"}. '
+        "Labels must be specific (e.g. 'Rebounding Edge') — never generic like 'Key Factor'."
     )
     raw = converse_text(prompt, max_tokens=768)
     items = _load_json_array(raw)
@@ -272,11 +238,11 @@ def generate_key_factors(context: str) -> list[dict[str, Any]]:
     for item in items:
         label = str(item.get("label", "")).strip()
         detail = str(item.get("detail", "")).strip()
-        favors = str(item.get("favors", "neutral")).strip().lower()
+        favors = str(item.get("favors", "team_a")).strip().lower()
         if not label or not detail:
             continue
-        if favors not in {"illinois", "opponent", "neutral"}:
-            favors = "neutral"
+        if favors not in {"team_a", "team_b"}:
+            favors = "team_a"
         result.append({"label": label, "detail": detail, "favors": favors})
     return result[:4]
 
@@ -284,7 +250,7 @@ def generate_key_factors(context: str) -> list[dict[str, Any]]:
 def generate_prediction(context: str, win_probability: float) -> str:
     prompt = (
         f"{context}\n\n"
-        f"Use this exact Illinois win probability: {win_probability:.1f}%.\n"
+        f"Use this exact win probability for team_a: {win_probability:.1f}%.\n"
         "Give a game prediction in 2 short paragraphs separated by a blank line. "
         "The first paragraph states the predicted outcome and score. "
         "The second paragraph explains why, citing only statistics from the FACTUAL ESPN STATS section — do not invent figures. "
@@ -301,11 +267,11 @@ def _merge_team_header(
         return generated
 
     merged = dict(generated)
-    for key in ("illinois_rank", "opponent_rank"):
+    for key in ("team_a_rank", "team_b_rank"):
         if team_header.get(key) is not None:
             merged[key] = team_header[key]
 
-    for key in ("illinois_name", "illinois_mascot", "illinois_color", "opponent_name", "opponent_mascot", "opponent_color"):
+    for key in ("team_a_name", "team_a_mascot", "team_a_color", "team_b_name", "team_b_mascot", "team_b_color"):
         if team_header.get(key):
             merged[key] = team_header[key]
 
@@ -316,22 +282,23 @@ def _merge_team_header(
 
 
 def run_narrator(
-    goal: str,
     scout_summary: str,
     analyst_summary: str,
     emit: Emitter,
     team_header: dict[str, Any] | None = None,
-    stat_comparison_table: list[dict[str, Any]] | None = None,
+    stat_table: list[dict[str, Any]] | None = None,
+    team_a_name: str = "Team A",
+    team_b_name: str = "Team B",
 ) -> None:
-    emit(events.agent_thought("narrator", f"Generating BI report for: {goal}"))
+    emit(events.agent_thought("narrator", f"Generating BI report for {team_a_name} vs {team_b_name}"))
     stat_block = (
         f"\n\nFACTUAL ESPN STATS (cite ONLY these numbers — do not invent any statistics):\n"
-        f"{json.dumps(stat_comparison_table)}"
-        if stat_comparison_table
+        f"{json.dumps(stat_table)}"
+        if stat_table
         else ""
     )
     context = (
-        f"Goal: {goal}\n\n"
+        f"Matchup: {team_a_name} (team_a) vs {team_b_name} (team_b)\n\n"
         f"Scout data:\n{scout_summary}\n\n"
         f"Analyst findings:\n{analyst_summary}"
         f"{stat_block}"
@@ -342,8 +309,8 @@ def run_narrator(
         "insight": lambda: generate_insight_card(context),
         "header": lambda: generate_team_header(context),
         "win_prob": lambda: generate_win_probability(context),
-        "stat_comparisons": lambda: generate_stat_comparisons(context, stat_comparison_table),
-        "report_cards": lambda: generate_report_cards(context, stat_comparison_table),
+        "stat_comparisons": lambda: generate_stat_comparisons(context, stat_table),
+        "report_cards": lambda: generate_report_cards(context, stat_table),
         "key_factors": lambda: generate_key_factors(context),
         "matchup_preview": lambda: generate_matchup_preview(context),
     }
@@ -361,20 +328,20 @@ def run_narrator(
 
     # Emit in logical UI order
     insight = results.get("insight") or {}
-    emit(events.insight_card(insight.get("title", "Illinois Basketball Insights"), insight.get("data", {})))
+    emit(events.insight_card(insight.get("title", "Matchup Insights"), insight.get("data", {})))
 
     header = _merge_team_header(results.get("header") or {}, team_header)
     emit(
         events.team_header(
-            header.get("illinois_rank"),
-            str(header.get("illinois_name", "Illinois")),
-            str(header.get("illinois_mascot", "Fighting Illini")),
-            str(header.get("opponent_name", "Opponent")),
-            str(header.get("opponent_mascot", "")),
-            header.get("opponent_rank"),
-            str(header.get("game_context", "Illinois Basketball")),
-            illinois_color=header.get("illinois_color"),
-            opponent_color=header.get("opponent_color"),
+            header.get("team_a_rank"),
+            str(header.get("team_a_name", "Team A")),
+            str(header.get("team_a_mascot", "")),
+            str(header.get("team_b_name", "Team B")),
+            str(header.get("team_b_mascot", "")),
+            header.get("team_b_rank"),
+            str(header.get("game_context", "Matchup")),
+            team_a_color=header.get("team_a_color"),
+            team_b_color=header.get("team_b_color"),
         )
     )
 
@@ -383,14 +350,14 @@ def run_narrator(
 
     for item in results.get("stat_comparisons") or []:
         try:
-            pct = float(item.get("illinois_pct", 0.5))
+            pct = float(item.get("team_a_pct", 0.5))
         except (TypeError, ValueError):
             pct = 0.5
         emit(
             events.stat_comparison(
                 str(item.get("label", "Stat")),
-                str(item.get("illinois_value", "-")),
-                str(item.get("opponent_value", "-")),
+                str(item.get("team_a_value", "-")),
+                str(item.get("team_b_value", "-")),
                 max(0.0, min(1.0, pct)),
             )
         )
@@ -400,8 +367,12 @@ def run_narrator(
         stat_val = str(item.get("stat") or "").strip().lower()
         if stat_val in _null_stat_values:
             continue
+        team_val = str(item.get("team") or "").strip().lower()
+        if team_val not in {"team_a", "team_b"}:
+            continue
         emit(
             events.report_card(
+                team_val,
                 str(item.get("dimension", "Dimension")),
                 str(item.get("grade", "B")),
                 str(item.get("stat", "")),

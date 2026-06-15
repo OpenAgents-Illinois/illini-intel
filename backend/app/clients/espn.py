@@ -26,4 +26,6 @@ def fetch_schedule(league: League, team_id: str, timeout: float = 30.0, season: 
 
 
 def fetch_teams(league: League, timeout: float = 30.0) -> dict[str, Any]:
-    return _get_json(league, "/teams", timeout=timeout)
+    # ESPN paginates /teams to ~50 by default; a high limit returns the full league
+    # (e.g. ~360 D-I basketball teams) so selectors aren't missing teams.
+    return _get_json(league, "/teams", timeout=timeout, params={"limit": 1000})

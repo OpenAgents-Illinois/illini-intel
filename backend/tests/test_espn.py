@@ -38,12 +38,15 @@ def test_fetch_teams_hits_league_teams_endpoint(monkeypatch) -> None:
 
     def fake_get(url, timeout=30.0, params=None):
         seen["url"] = url
+        seen["params"] = params
         return FakeResponse({"sports": []})
 
     monkeypatch.setattr(espn.httpx, "get", fake_get)
     espn.fetch_teams(get_league("nfl"))
 
     assert seen["url"].endswith("/football/nfl/teams")
+    # A high limit is required so ESPN returns the full league, not just the first page.
+    assert seen["params"]["limit"] >= 500
 
 
 def test_fetch_scoreboard_removed() -> None:

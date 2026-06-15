@@ -6,7 +6,6 @@ import { MatchupPreview } from "@/app/features/analysis/components/MatchupPrevie
 import { Prediction } from "@/app/features/analysis/components/Prediction";
 import { InsightCard } from "@/app/features/analysis/components/InsightCard";
 import { KeyFactors } from "@/app/features/analysis/components/KeyFactors";
-import { GroupedBarChart } from "@/app/features/analysis/components/GroupedBarChart";
 import { StreamState } from "@/app/features/analysis/types";
 
 interface BiReportPanelProps {
@@ -14,6 +13,12 @@ interface BiReportPanelProps {
 }
 
 export function BiReportPanel({ streamState }: BiReportPanelProps) {
+  const header = streamState.teamHeader;
+  const teamAName = header?.team_a_name;
+  const teamBName = header?.team_b_name;
+  const teamAColor = header?.team_a_color;
+  const teamBColor = header?.team_b_color;
+
   const hasOutput =
     streamState.teamHeader !== null ||
     streamState.winProbability !== null ||
@@ -22,8 +27,7 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
     streamState.matchupPreview !== null ||
     streamState.prediction !== null ||
     streamState.insightCards.length > 0 ||
-    streamState.keyFactors.length > 0 ||
-    streamState.charts.length > 0;
+    streamState.keyFactors.length > 0;
 
   return (
     <div className="w-1/2 overflow-y-auto p-4 space-y-4">
@@ -43,34 +47,44 @@ export function BiReportPanel({ streamState }: BiReportPanelProps) {
 
       {streamState.winProbability !== null && (
         <WinProbability
-          probability={streamState.winProbability}
-          opponentName={streamState.teamHeader?.opponent_name}
-          opponentColor={streamState.teamHeader?.opponent_color}
+          teamAProbability={streamState.winProbability}
+          teamAName={teamAName}
+          teamBName={teamBName}
+          teamAColor={teamAColor}
+          teamBColor={teamBColor}
         />
       )}
 
       {streamState.prediction !== null && (
-        <Prediction content={streamState.prediction} winProbability={streamState.winProbability} />
+        <Prediction
+          content={streamState.prediction}
+          winProbability={streamState.winProbability}
+          teamAName={teamAName}
+        />
       )}
 
       {(!streamState.running || streamState.statComparisons.length > 0) && streamState.winProbability !== null && (
         <StatComparisonChart
           comparisons={streamState.statComparisons}
-          opponentName={streamState.teamHeader?.opponent_name}
-          opponentColor={streamState.teamHeader?.opponent_color}
+          teamAName={teamAName}
+          teamBName={teamBName}
+          teamAColor={teamAColor}
+          teamBColor={teamBColor}
         />
       )}
 
       {streamState.keyFactors.length > 0 && (
         <KeyFactors
           factors={streamState.keyFactors}
-          opponentName={streamState.teamHeader?.opponent_name}
-          opponentColor={streamState.teamHeader?.opponent_color}
+          teamAName={teamAName}
+          teamBName={teamBName}
+          teamAColor={teamAColor}
+          teamBColor={teamBColor}
         />
       )}
 
       {streamState.reportCards.length > 0 && (
-        <ReportCardGrid cards={streamState.reportCards} />
+        <ReportCardGrid cards={streamState.reportCards} teamAName={teamAName} teamBName={teamBName} />
       )}
 
       {streamState.insightCards.map((card, i) => (

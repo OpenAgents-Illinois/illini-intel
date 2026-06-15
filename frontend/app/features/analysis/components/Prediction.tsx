@@ -4,10 +4,11 @@ import { splitIntoParagraphs, highlightSegments } from "@/app/features/analysis/
 interface PredictionProps {
   content: string;
   winProbability: number | null;
+  teamAName?: string;
 }
 
-export function Prediction({ content, winProbability }: PredictionProps) {
-  const paragraphs = splitIntoParagraphs(buildPredictionSummary(content, winProbability));
+export function Prediction({ content, winProbability, teamAName }: PredictionProps) {
+  const paragraphs = splitIntoParagraphs(buildPredictionSummary(content, winProbability, teamAName));
 
   return (
     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">

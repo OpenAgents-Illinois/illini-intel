@@ -1,44 +1,50 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AgentTracePanel } from "@/app/features/analysis/components/AgentTracePanel";
 import { BiReportPanel } from "@/app/features/analysis/components/BiReportPanel";
-import { useAgentStream } from "@/app/features/analysis/hooks/useAgentStream";
+import { MatchupSelector } from "@/app/features/analysis/components/MatchupSelector";
+import { MatchupSelection, useAgentStream } from "@/app/features/analysis/hooks/useAgentStream";
 import { initialStreamState } from "@/app/features/analysis/state";
 import { StreamState } from "@/app/features/analysis/types";
 
-const DEFAULT_GOAL = "Analyze Illinois basketball's upcoming matchup";
+const INITIAL_SELECTION: MatchupSelection = {
+  league: "mens-college-basketball",
+  teamA: "356",
+  teamB: "41",
+};
 
 export function AnalysisPage() {
-  const [goal, setGoal] = useState(DEFAULT_GOAL);
   const [streamState, setStreamState] = useState<StreamState>(initialStreamState);
+  const selectionRef = useRef<MatchupSelection>(INITIAL_SELECTION);
   const { start } = useAgentStream({ onStateChange: setStreamState });
 
   const handleRun = useCallback(() => {
-    if (!streamState.running) {
-      start(goal);
+    if (streamState.running) return;
+    const selection = selectionRef.current;
+    if (selection.teamA && selection.teamB && selection.teamA !== selection.teamB) {
+      start(selection);
     }
-  }, [goal, start, streamState.running]);
+  }, [start, streamState.running]);
 
   return (
     <div className="min-h-screen bg-zinc-950 font-sans text-zinc-100">
       <header className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Illini Intel</h1>
-          <p className="text-xs text-zinc-500">Fighting Illini Basketball BI</p>
+          <h1 className="text-xl font-bold tracking-tight text-white">Matchup Intel</h1>
+          <p className="text-xs text-zinc-500">Agentic team-vs-team sports BI</p>
         </div>
         <div className="flex items-center gap-3">
-          <input
-            className="w-80 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-orange-500 focus:outline-none"
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-            placeholder="Ask about Illinois basketball..."
+          <MatchupSelector
             disabled={streamState.running}
+            onChange={(selection) => {
+              selectionRef.current = selection;
+            }}
           />
           <button
             onClick={handleRun}
             disabled={streamState.running}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {streamState.running ? "Running..." : "Run Analysis"}
           </button>

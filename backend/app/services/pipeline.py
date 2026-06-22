@@ -1,32 +1,18 @@
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
 from app.clients.bedrock import converse_text
-from app.clients.espn import fetch_schedule, fetch_scoreboard, fetch_team
-from app.core.config import ILLINOIS_TEAM_ID, UCONN_TEAM_ID
+from app.clients.espn import fetch_schedule, fetch_team
+from app.core.leagues import League, get_league
 from app.models import events
+from app.models.matchup import MatchupContext, MatchupRequest, TeamRef
 from app.services.narrator import run_narrator
 
 Emitter = Callable[[dict[str, Any]], None]
-
-ROUND_KEYWORDS = (
-    "final four",
-    "elite 8",
-    "elite eight",
-    "sweet 16",
-    "sweet sixteen",
-    "round of 32",
-    "round of 64",
-    "big ten tournament",
-    "ncaa tournament",
-    "postseason",
-    "regular season",
-)
 
 
 def _coerce_rank(value: Any) -> int | None:
@@ -71,30 +57,6 @@ def _season_from_date(now: datetime | None = None) -> int:
     return current.year + 1 if current.month >= 7 else current.year
 
 
-def _extract_goal_years(goal: str) -> list[int]:
-    years: list[int] = []
-    for first, second in re.findall(r"\b(20\d{2})[-/](\d{2,4})\b", goal):
-        if len(second) == 2:
-            years.append(int(first[:2] + second))
-        else:
-            years.append(int(second))
-    years.extend(int(year) for year in re.findall(r"\b(20\d{2})\b", goal))
-    return list(dict.fromkeys(years))
-
-
-def _candidate_seasons(goal: str, now: datetime | None = None) -> list[int]:
-    explicit = _extract_goal_years(goal)
-    if explicit:
-        return explicit
-
-    current = _season_from_date(now)
-    lowered = goal.lower()
-    if any(keyword in lowered for keyword in ROUND_KEYWORDS):
-        return [current - offset for offset in range(0, 8)]
-
-    return [current]
-
-
 def _competitors_from_event(event: dict[str, Any]) -> list[dict[str, Any]]:
     for competition in event.get("competitions", []):
         competitors = competition.get("competitors", [])
@@ -108,102 +70,6 @@ def _competitor_for_team(event: dict[str, Any], team_id: str) -> dict[str, Any]:
         if str(competitor.get("team", {}).get("id")) == str(team_id):
             return competitor
     return {}
-
-
-def _opponent_competitor(event: dict[str, Any] | None) -> dict[str, Any]:
-    if not event:
-        return {}
-    for competitor in _competitors_from_event(event):
-        if str(competitor.get("team", {}).get("id")) != ILLINOIS_TEAM_ID:
-            return competitor
-    return {}
-
-
-def _opponent_team_id(event: dict[str, Any] | None) -> str | None:
-    competitor = _opponent_competitor(event)
-    team_id = competitor.get("team", {}).get("id")
-    return str(team_id) if team_id is not None else None
-
-
-def _event_labels(event: dict[str, Any]) -> str:
-    competition = (event.get("competitions") or [{}])[0]
-    note = ((competition.get("notes") or [{}])[0]).get("headline", "")
-    pieces = [
-        event.get("name", ""),
-        event.get("shortName", ""),
-        note,
-        competition.get("type", {}).get("text", ""),
-        competition.get("type", {}).get("abbreviation", ""),
-    ]
-    competitors = _competitors_from_event(event)
-    for competitor in competitors:
-        team = competitor.get("team", {})
-        pieces.extend(
-            [
-                team.get("displayName", ""),
-                team.get("shortDisplayName", ""),
-                team.get("location", ""),
-                team.get("name", ""),
-                team.get("nickname", ""),
-            ]
-        )
-    return " ".join(piece for piece in pieces if piece).lower()
-
-
-def _event_match_score(goal: str, event: dict[str, Any]) -> int:
-    lowered = goal.lower()
-    labels = _event_labels(event)
-    score = 0
-
-    if "vs " in lowered or "@" in lowered or "against" in lowered or "matchup" in lowered:
-        competitors = _competitors_from_event(event)
-        opponent_labels = []
-        for competitor in competitors:
-            team = competitor.get("team", {})
-            if str(team.get("id")) == ILLINOIS_TEAM_ID:
-                continue
-            opponent_labels.extend(
-                label.lower()
-                for label in (
-                    team.get("displayName"),
-                    team.get("shortDisplayName"),
-                    team.get("location"),
-                    team.get("nickname"),
-                    team.get("abbreviation"),
-                )
-                if label
-            )
-        if any(label in lowered for label in opponent_labels):
-            score += 6
-
-    for keyword in ROUND_KEYWORDS:
-        if keyword in lowered and keyword in labels:
-            score += 4
-
-    for year in _extract_goal_years(goal):
-        if str(year) in labels:
-            score += 2
-
-    if any(word in lowered for word in ("upcoming", "next", "tonight", "today")):
-        status = event.get("status", {}).get("type", {}).get("name", "")
-        if status in {"STATUS_SCHEDULED", "STATUS_IN_PROGRESS"}:
-            score += 2
-
-    return score
-
-
-def _resolve_matchup_event(goal: str, schedules: list[dict[str, Any]]) -> dict[str, Any] | None:
-    best_event: dict[str, Any] | None = None
-    best_score = 0
-    for schedule in schedules:
-        for event in schedule.get("events", []):
-            if not isinstance(event, dict):
-                continue
-            score = _event_match_score(goal, event)
-            if score > best_score:
-                best_score = score
-                best_event = event
-    return best_event
 
 
 def _derive_game_context(event: dict[str, Any] | None) -> str | None:
@@ -237,14 +103,6 @@ def _rank_from_event(event: dict[str, Any] | None, team_id: str) -> int | None:
         if rank is not None:
             return rank
     return None
-
-
-def _team_display_fields(team_payload: dict[str, Any], fallback_name: str, fallback_mascot: str) -> tuple[str, str]:
-    team = team_payload.get("team", {})
-    return (
-        team.get("shortDisplayName", fallback_name),
-        team.get("name", fallback_mascot),
-    )
 
 
 def _extract_recent_form(schedule: dict[str, Any], team_id: str, n: int = 5) -> list[str]:
@@ -294,20 +152,6 @@ def _extract_recent_form(schedule: dict[str, Any], team_id: str, n: int = 5) -> 
     return results
 
 
-def _slim_team(team_payload: dict[str, Any]) -> dict[str, Any]:
-    """Return only identity and statistics fields to keep context compact."""
-    team = team_payload.get("team", {})
-    return {
-        "id": team.get("id"),
-        "displayName": team.get("displayName"),
-        "shortDisplayName": team.get("shortDisplayName"),
-        "abbreviation": team.get("abbreviation"),
-        "record": team.get("record"),
-        "statistics": team.get("statistics"),
-        "ranks": team.get("ranks"),
-    }
-
-
 def _extract_stat_map(team_payload: dict[str, Any]) -> dict[str, Any]:
     """Extract a flat name→value map from ESPN statistics array."""
     team = team_payload.get("team", {})
@@ -321,173 +165,160 @@ def _extract_stat_map(team_payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _build_stat_comparison_table(
-    illinois_payload: dict[str, Any],
-    opponent_payload: dict[str, Any],
+    team_a_payload: dict[str, Any],
+    team_b_payload: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Return a list of {stat, illinois, opponent} rows for stats present in both teams."""
-    illinois_stats = _extract_stat_map(illinois_payload)
-    opponent_stats = _extract_stat_map(opponent_payload)
-    shared = sorted(set(illinois_stats) & set(opponent_stats))
+    """Return a list of {stat, team_a, team_b} rows for stats present in both teams."""
+    team_a_stats = _extract_stat_map(team_a_payload)
+    team_b_stats = _extract_stat_map(team_b_payload)
+    shared = sorted(set(team_a_stats) & set(team_b_stats))
     return [
-        {"stat": k, "illinois": illinois_stats[k], "opponent": opponent_stats[k]}
+        {"stat": k, "team_a": team_a_stats[k], "team_b": team_b_stats[k]}
         for k in shared
     ]
 
 
-def _build_team_header(
-    illinois: dict[str, Any],
-    opponent: dict[str, Any],
-    matchup_event: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    illinois_name, illinois_mascot = _team_display_fields(illinois, "Illinois", "Fighting Illini")
-    opponent_name, opponent_mascot = _team_display_fields(opponent, "Opponent", "")
+def _slim_team_by_name(team_ref: TeamRef) -> dict[str, Any]:
+    return {"name": team_ref.name, "mascot": team_ref.mascot, "rank": team_ref.rank}
 
-    if matchup_event:
-        illinois_competitor = _competitor_for_team(matchup_event, ILLINOIS_TEAM_ID)
-        opponent_competitor = _opponent_competitor(matchup_event)
-        illinois_team = illinois_competitor.get("team", {})
-        opponent_team = opponent_competitor.get("team", {})
-        if illinois_team:
-            illinois_name = illinois_team.get("shortDisplayName", illinois_team.get("location", illinois_name))
-            illinois_mascot = illinois_team.get("name", illinois_team.get("nickname", illinois_mascot))
-        if opponent_team:
-            opponent_name = opponent_team.get("shortDisplayName", opponent_team.get("location", opponent_name))
-            opponent_mascot = opponent_team.get("name", opponent_team.get("nickname", opponent_mascot))
 
+def _team_ref(league: League, team_payload: dict[str, Any], team_id: str, event: dict[str, Any] | None) -> TeamRef:
+    team = team_payload.get("team", {})
+    name = team.get("shortDisplayName") or team.get("displayName") or team.get("location") or "Team"
+    mascot = team.get("name") or team.get("nickname") or ""
+    color = team.get("color")
+    rank = _rank_from_event(event, team_id) if event else _extract_ap_rank(team_payload, team_id)
+    return TeamRef(id=str(team_id), name=name, mascot=mascot, color=color, rank=rank)
+
+
+def _find_head_to_head(schedule: dict[str, Any], opponent_id: str) -> dict[str, Any] | None:
+    for event in schedule.get("events", []):
+        if not isinstance(event, dict):
+            continue
+        for competitor in _competitors_from_event(event):
+            if str(competitor.get("team", {}).get("id")) == str(opponent_id):
+                return event
+    return None
+
+
+def _team_header_dict(ctx: MatchupContext) -> dict[str, Any]:
     return {
-        "illinois_rank": _rank_from_event(matchup_event, ILLINOIS_TEAM_ID)
-        if matchup_event
-        else _extract_ap_rank(illinois, ILLINOIS_TEAM_ID),
-        "illinois_name": illinois_name,
-        "illinois_mascot": illinois_mascot,
-        "illinois_color": illinois.get("team", {}).get("color"),
-        "opponent_name": opponent_name,
-        "opponent_mascot": opponent_mascot,
-        "opponent_rank": _rank_from_event(matchup_event, _opponent_team_id(matchup_event) or UCONN_TEAM_ID)
-        if matchup_event
-        else _extract_ap_rank(opponent, UCONN_TEAM_ID),
-        "opponent_color": opponent.get("team", {}).get("color"),
-        "game_context": _derive_game_context(matchup_event),
+        "team_a_rank": ctx.team_a.rank,
+        "team_a_name": ctx.team_a.name,
+        "team_a_mascot": ctx.team_a.mascot,
+        "team_a_color": ctx.team_a.color,
+        "team_b_rank": ctx.team_b.rank,
+        "team_b_name": ctx.team_b.name,
+        "team_b_mascot": ctx.team_b.mascot,
+        "team_b_color": ctx.team_b.color,
+        "game_context": ctx.game_context,
     }
 
 
-def run(goal: str, emit: Emitter) -> None:
-    emit(events.agent_thought("scout", f"Starting scout agent with goal: {goal}"))
+def _scout(league: League, request: MatchupRequest, emit: Emitter) -> MatchupContext:
+    emit(events.tool_call("scout", "fetch_team", {"team_id": request.team_a_id}))
+    team_a_payload = fetch_team(league, request.team_a_id)
+    emit(events.tool_result("scout", "fetch_team", {"team": team_a_payload.get("team", {}).get("displayName", "Team A")}))
+
+    emit(events.tool_call("scout", "fetch_team", {"team_id": request.team_b_id}))
+    team_b_payload = fetch_team(league, request.team_b_id)
+    emit(events.tool_result("scout", "fetch_team", {"team": team_b_payload.get("team", {}).get("displayName", "Team B")}))
+
+    season = _season_from_date()
+    emit(events.tool_call("scout", "fetch_schedule", {"team_id": request.team_a_id, "season": season}))
+    schedule_a = fetch_schedule(league, request.team_a_id, season=season)
+    emit(events.tool_result("scout", "fetch_schedule", {"team": "team_a", "games": len(schedule_a.get("events", []))}))
+
+    emit(events.tool_call("scout", "fetch_schedule", {"team_id": request.team_b_id, "season": season}))
+    schedule_b = fetch_schedule(league, request.team_b_id, season=season)
+    emit(events.tool_result("scout", "fetch_schedule", {"team": "team_b", "games": len(schedule_b.get("events", []))}))
+
+    h2h = _find_head_to_head(schedule_a, request.team_b_id)
+    game_context = _derive_game_context(h2h) or f"{league.label} Matchup"
+
+    team_a = _team_ref(league, team_a_payload, request.team_a_id, h2h)
+    team_b = _team_ref(league, team_b_payload, request.team_b_id, h2h)
+    stat_table = _build_stat_comparison_table(team_a_payload, team_b_payload)
+
+    ctx = MatchupContext(
+        league=league,
+        team_a=team_a,
+        team_b=team_b,
+        head_to_head_event=h2h,
+        game_context=game_context,
+        stat_table=stat_table,
+        team_a_form=_extract_recent_form(schedule_a, request.team_a_id),
+        team_b_form=_extract_recent_form(schedule_b, request.team_b_id),
+    )
+    emit(events.recent_form(team_a.name, ctx.team_a_form))
+    emit(events.recent_form(team_b.name, ctx.team_b_form))
+    return ctx
+
+
+def _scout_summary(ctx: MatchupContext) -> str:
+    raw_context = {
+        "team_a": _slim_team_by_name(ctx.team_a),
+        "team_b": _slim_team_by_name(ctx.team_b),
+        "stat_comparison_table": ctx.stat_table,
+    }
+    prompt = (
+        f"You are the Scout agent for a {ctx.league.sport} matchup between "
+        f"{ctx.team_a.name} and {ctx.team_b.name}. Review this ESPN-derived context and write a "
+        "concise scouting summary for downstream analysis. The stat_comparison_table contains "
+        f"side-by-side season averages for both teams — explicitly mention key stats for BOTH "
+        "teams by name. Plain text only.\n\n"
+        f"Context:\n{json.dumps(raw_context, default=str)[:12000]}"
+    )
+    return converse_text(prompt, max_tokens=900)
+
+
+def run(request: MatchupRequest, emit: Emitter) -> None:
+    league = get_league(request.league_key)
+    if league is None:
+        emit(events.agent_thought("scout", f"Unknown league: {request.league_key!r}"))
+        emit(events.done())
+        return
+
+    emit(events.agent_thought("scout", f"Scouting {league.label}: {request.team_a_id} vs {request.team_b_id}"))
     scout_summary = ""
-    team_header: dict[str, Any] | None = None
-
+    ctx: MatchupContext | None = None
     try:
-        emit(events.tool_call("scout", "fetch_team", {"team_id": ILLINOIS_TEAM_ID}))
-        illinois = fetch_team(ILLINOIS_TEAM_ID)
-        emit(
-            events.tool_result(
-                "scout",
-                "fetch_team",
-                {"team": illinois.get("team", {}).get("displayName", "Illinois")},
-            )
-        )
-
-        seasons = _candidate_seasons(goal)
-        schedules: list[dict[str, Any]] = []
-        for season in seasons:
-            emit(events.tool_call("scout", "fetch_schedule", {"team_id": ILLINOIS_TEAM_ID, "season": season}))
-            schedule = fetch_schedule(ILLINOIS_TEAM_ID, season=season)
-            schedules.append(schedule)
-            emit(
-                events.tool_result(
-                    "scout",
-                    "fetch_schedule",
-                    {"season": season, "games": len(schedule.get("events", []))},
-                )
-            )
-        schedule = schedules[0] if schedules else {"events": []}
-
-        emit(events.tool_call("scout", "fetch_scoreboard", {}))
-        scoreboard = fetch_scoreboard()
-        emit(
-            events.tool_result(
-                "scout",
-                "fetch_scoreboard",
-                {"games": len(scoreboard.get("events", []))},
-            )
-        )
-
-        matchup_event = _resolve_matchup_event(goal, schedules + [scoreboard])
-        opponent_id = _opponent_team_id(matchup_event) or UCONN_TEAM_ID
-        emit(events.tool_call("scout", "fetch_team", {"team_id": opponent_id}))
-        opponent = fetch_team(opponent_id)
-        emit(
-            events.tool_result(
-                "scout",
-                "fetch_team",
-                {"team": opponent.get("team", {}).get("displayName", "Opponent")},
-            )
-        )
-
-        emit(events.tool_call("scout", "fetch_schedule", {"team_id": opponent_id, "season": seasons[0]}))
-        opponent_schedule = fetch_schedule(opponent_id, season=seasons[0])
-        emit(
-            events.tool_result(
-                "scout",
-                "fetch_schedule",
-                {"team": "opponent", "season": seasons[0], "games": len(opponent_schedule.get("events", []))},
-            )
-        )
-
-        team_header = _build_team_header(illinois, opponent, matchup_event)
-        stat_comparison_table = _build_stat_comparison_table(illinois, opponent)
-
-        illinois_form = _extract_recent_form(schedules[0], ILLINOIS_TEAM_ID)
-        opponent_form = _extract_recent_form(opponent_schedule, opponent_id)
-        emit(events.recent_form(team_header.get("illinois_name", "Illinois"), illinois_form))
-        emit(events.recent_form(team_header.get("opponent_name", "Opponent"), opponent_form))
-
-        raw_context = {
-            "illinois": _slim_team(illinois),
-            "opponent": _slim_team(opponent),
-            "stat_comparison_table": stat_comparison_table,
-            "team_header": team_header,
-            "matchup_event": matchup_event,
-        }
-        illinois_name = team_header.get("illinois_name", "Illinois")
-        opponent_name = team_header.get("opponent_name", "Opponent")
-        prompt = (
-            f"Goal: {goal}\n\n"
-            "You are the Scout agent for Illini Intel. Review this ESPN-derived context and write "
-            "a concise scouting summary for downstream analysis. "
-            f"The stat_comparison_table contains side-by-side season averages for {illinois_name} and {opponent_name} — "
-            "explicitly mention key stats (scoring, rebounds, turnovers, tempo, shooting) for BOTH teams by name. "
-            "Focus on matchup context and what Illinois needs to control. Plain text only.\n\n"
-            f"Context:\n{json.dumps(raw_context, default=str)[:12000]}"
-        )
-        scout_summary = converse_text(prompt, max_tokens=900)
+        ctx = _scout(league, request, emit)
+        scout_summary = _scout_summary(ctx)
     except Exception as error:
         scout_summary = "Scout error"
         emit(events.agent_thought("scout", f"Scout error: {error!r}"))
 
-    emit(events.agent_thought("analyst", f"Starting analyst agent with goal: {goal}"))
+    emit(events.agent_thought("analyst", "Starting analyst agent"))
     analyst_summary = ""
-    if scout_summary == "Scout error":
+    if scout_summary == "Scout error" or ctx is None:
         analyst_summary = "Analyst error"
         emit(events.agent_thought("analyst", "Analyst skipped because scout failed."))
     else:
         try:
             prompt = (
-                f"Goal: {goal}\n\n"
                 f"Scout summary:\n{scout_summary}\n\n"
-                "You are the Illini Intel analyst. Produce a concise analysis covering matchup dynamics, "
-                "risk factors, and 4-6 concrete takeaways. Plain text, no JSON."
+                f"You are the analyst for {ctx.team_a.name} vs {ctx.team_b.name}. Produce a concise "
+                "analysis covering matchup dynamics, risk factors, and 4-6 concrete takeaways. Plain text."
             )
             analyst_summary = converse_text(prompt, max_tokens=900)
         except Exception as error:
             analyst_summary = "Analyst error"
             emit(events.agent_thought("analyst", f"Analyst error: {error!r}"))
 
-    if scout_summary == "Scout error" or analyst_summary == "Analyst error":
+    if scout_summary == "Scout error" or analyst_summary == "Analyst error" or ctx is None:
         emit(events.agent_thought("narrator", "Skipping narrator because upstream agents failed."))
     else:
         try:
-            run_narrator(goal, scout_summary, analyst_summary, emit, team_header=team_header, stat_comparison_table=stat_comparison_table)
+            run_narrator(
+                scout_summary,
+                analyst_summary,
+                emit,
+                team_header=_team_header_dict(ctx),
+                stat_table=ctx.stat_table,
+                team_a_name=ctx.team_a.name,
+                team_b_name=ctx.team_b.name,
+            )
         except Exception as error:
             emit(events.agent_thought("narrator", f"Narrator error: {error!r}"))
 

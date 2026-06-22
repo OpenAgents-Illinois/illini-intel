@@ -13,25 +13,20 @@ export const initialStreamState: StreamState = {
   winProbability: null,
   recentForms: [],
   keyFactors: [],
-  charts: [],
   done: false,
 };
 
 function normalizeTeamHeader(event: Extract<AgentEvent, { type: "team_header" }>): TeamHeaderData {
-  const legacyOpponentName = (event as { opponent_name?: string }).opponent_name;
   return {
-    illinois_rank: event.illinois_rank,
-    illinois_name:
-      (event as { illinois_name?: string }).illinois_name ?? "Illinois",
-    illinois_mascot:
-      (event as { illinois_mascot?: string }).illinois_mascot ?? "Fighting Illini",
-    illinois_color: (event as { illinois_color?: string }).illinois_color,
-    opponent_name: legacyOpponentName ?? "Opponent",
-    opponent_mascot:
-      (event as { opponent_mascot?: string }).opponent_mascot ?? "",
-    opponent_rank: event.opponent_rank,
-    opponent_color: (event as { opponent_color?: string }).opponent_color,
-    game_context: event.game_context ?? "Illinois Basketball",
+    team_a_rank: event.team_a_rank,
+    team_a_name: event.team_a_name ?? "Team A",
+    team_a_mascot: event.team_a_mascot ?? "",
+    team_a_color: event.team_a_color,
+    team_b_name: event.team_b_name ?? "Team B",
+    team_b_mascot: event.team_b_mascot ?? "",
+    team_b_rank: event.team_b_rank,
+    team_b_color: event.team_b_color,
+    game_context: event.game_context ?? "Matchup",
   };
 }
 
@@ -52,17 +47,15 @@ export function applyEvent(state: StreamState, event: AgentEvent): StreamState {
     case "team_header":
       return { ...state, teamHeader: normalizeTeamHeader(event) };
     case "stat_comparison":
-      return { ...state, statComparisons: [...state.statComparisons, { label: event.label, illinois_value: event.illinois_value, opponent_value: event.opponent_value, illinois_pct: event.illinois_pct }] };
+      return { ...state, statComparisons: [...state.statComparisons, { label: event.label, team_a_value: event.team_a_value, team_b_value: event.team_b_value, team_a_pct: event.team_a_pct }] };
     case "report_card":
-      return { ...state, reportCards: [...state.reportCards, { dimension: event.dimension, grade: event.grade, stat: event.stat, explanation: event.explanation }] };
+      return { ...state, reportCards: [...state.reportCards, { team: event.team, dimension: event.dimension, grade: event.grade, stat: event.stat, explanation: event.explanation }] };
     case "win_probability":
-      return { ...state, winProbability: event.probability };
+      return { ...state, winProbability: event.team_a_probability };
     case "recent_form":
       return { ...state, recentForms: [...state.recentForms, { team: event.team, results: event.results }] };
     case "key_factor":
       return { ...state, keyFactors: [...state.keyFactors, { label: event.label, detail: event.detail, favors: event.favors }] };
-    case "chart":
-      return { ...state, charts: [...state.charts, { chart_type: event.chart_type, title: event.title, series: event.series }] };
     case "done":
       return { ...state, running: false, done: true };
   }

@@ -1,5 +1,5 @@
 import { TeamHeaderData, RecentFormItem } from "@/app/features/analysis/types";
-import { getIllinoisColors, getOpponentColors } from "@/app/features/analysis/components/teamColors";
+import { getTeamColors } from "@/app/features/analysis/components/teamColors";
 
 interface TeamHeaderProps {
   data: TeamHeaderData;
@@ -26,28 +26,28 @@ function FormBubbles({ results }: { results: string[] }) {
 }
 
 export function TeamHeader({ data, running, recentForms = [] }: TeamHeaderProps) {
-  const illinoisName = data.illinois_name || "Illinois";
-  const illinoisMascot = data.illinois_mascot || "Fighting Illini";
-  const opponentName = data.opponent_name || "Opponent";
-  const opponentMascot = data.opponent_mascot || "";
-  const illinoisColors = getIllinoisColors();
-  const opponentColors = getOpponentColors(opponentName, data.opponent_color);
+  const teamAName = data.team_a_name || "Team A";
+  const teamAMascot = data.team_a_mascot || "";
+  const teamBName = data.team_b_name || "Team B";
+  const teamBMascot = data.team_b_mascot || "";
+  const teamAColors = getTeamColors(data.team_a_color, "a");
+  const teamBColors = getTeamColors(data.team_b_color, "b");
 
-  const illinoisForm = recentForms.find(f => f.team.toLowerCase().includes("illinois"))?.results ?? [];
-  const opponentForm = recentForms.find(f => !f.team.toLowerCase().includes("illinois"))?.results ?? [];
+  const teamAForm = recentForms.find((f) => f.team === teamAName)?.results ?? recentForms[0]?.results ?? [];
+  const teamBForm = recentForms.find((f) => f.team === teamBName)?.results ?? recentForms[1]?.results ?? [];
 
   return (
     <div className="flex items-center justify-between border-b border-zinc-800 pb-4 mb-4">
       <div className="flex flex-col items-center text-center">
         <div className="text-xs text-zinc-500 uppercase tracking-widest mb-1">AP Rank</div>
-        <div className="text-4xl font-black" style={{ color: illinoisColors.primary }}>
-          {data.illinois_rank != null ? `#${data.illinois_rank}` : "—"}
+        <div className="text-4xl font-black" style={{ color: teamAColors.primary }}>
+          {data.team_a_rank != null ? `#${data.team_a_rank}` : "—"}
         </div>
         <div className="mt-2">
-          <div className="text-sm font-bold text-white">{illinoisName.toUpperCase()}</div>
-          <div className="text-xs text-zinc-600">{illinoisMascot}</div>
+          <div className="text-sm font-bold text-white">{teamAName.toUpperCase()}</div>
+          <div className="text-xs text-zinc-600">{teamAMascot}</div>
         </div>
-        <FormBubbles results={illinoisForm} />
+        <FormBubbles results={teamAForm} />
       </div>
 
       <div className="text-center">
@@ -59,14 +59,14 @@ export function TeamHeader({ data, running, recentForms = [] }: TeamHeaderProps)
 
       <div className="flex flex-col items-center text-center">
         <div className="text-xs text-zinc-500 uppercase tracking-widest mb-1">AP Rank</div>
-        <div className="text-4xl font-black" style={{ color: opponentColors.secondary }}>
-          {data.opponent_rank != null ? `#${data.opponent_rank}` : "—"}
+        <div className="text-4xl font-black" style={{ color: teamBColors.primary }}>
+          {data.team_b_rank != null ? `#${data.team_b_rank}` : "—"}
         </div>
         <div className="mt-2">
-          <div className="text-sm font-bold text-white">{opponentName.toUpperCase()}</div>
-          <div className="text-xs text-zinc-600">{opponentMascot || "Opponent"}</div>
+          <div className="text-sm font-bold text-white">{teamBName.toUpperCase()}</div>
+          <div className="text-xs text-zinc-600">{teamBMascot}</div>
         </div>
-        <FormBubbles results={opponentForm} />
+        <FormBubbles results={teamBForm} />
       </div>
     </div>
   );

@@ -12,10 +12,10 @@ export function normalizeComparisons(comparisons: StatComparisonItem[]) {
     const dedupeKey = label.toLowerCase();
 
     if (isPlaceholderText(label)) return false;
-    if (!Number.isFinite(item.illinois_pct) || item.illinois_pct < 0 || item.illinois_pct > 1) {
+    if (!Number.isFinite(item.team_a_pct) || item.team_a_pct < 0 || item.team_a_pct > 1) {
       return false;
     }
-    if (isPlaceholderText(item.illinois_value) || isPlaceholderText(item.opponent_value)) {
+    if (isPlaceholderText(item.team_a_value) || isPlaceholderText(item.team_b_value)) {
       return false;
     }
     if (seen.has(dedupeKey)) return false;
@@ -24,5 +24,14 @@ export function normalizeComparisons(comparisons: StatComparisonItem[]) {
     return true;
   });
 
-  return normalized.slice(0, 4);
+  const sliced = normalized.slice(0, 4);
+
+  // Drop degenerate sets where every row is pinned to the same extreme (0 or 1) —
+  // a sign the model emitted junk confidence rather than real percentages.
+  const allSameExtreme =
+    sliced.length >= 2 &&
+    sliced.every((item) => item.team_a_pct === sliced[0].team_a_pct) &&
+    (sliced[0].team_a_pct === 0 || sliced[0].team_a_pct === 1);
+
+  return allSameExtreme ? [] : sliced;
 }

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from app.core.leagues import get_league
+from app.models.matchup import MatchupRequest
 from app.services import pipeline
+
+NCAA = get_league("mens-college-basketball")
 
 
 class RecordingEmitter:
@@ -11,228 +15,92 @@ class RecordingEmitter:
         self.events.append(event)
 
 
-def test_pipeline_emits_done_when_upstream_fails(monkeypatch) -> None:
+def _illinois_payload():
+    return {
+        "team": {"id": "356", "shortDisplayName": "Illinois", "name": "Fighting Illini", "color": "ff5f05"},
+        "nextEvent": [{"competitions": [{"competitors": [
+            {"team": {"id": "356"}, "curatedRank": {"current": 8}},
+        ]}]}],
+    }
+
+
+def _uconn_payload():
+    return {
+        "team": {"id": "41", "shortDisplayName": "UConn", "name": "Huskies", "color": "0c2340"},
+        "nextEvent": [{"competitions": [{"competitors": [
+            {"team": {"id": "41"}, "curatedRank": {"current": 5}},
+        ]}]}],
+    }
+
+
+def _schedule_with_h2h():
+    return {"events": [{
+        "competitions": [{
+            "notes": [{"headline": "Men's Basketball Championship - East Region - Elite 8"}],
+            "competitors": [
+                {"team": {"id": "356", "shortDisplayName": "Illinois", "name": "Fighting Illini"}, "curatedRank": {"current": 3}},
+                {"team": {"id": "41", "shortDisplayName": "UConn", "name": "Huskies"}, "curatedRank": {"current": 2}},
+            ],
+        }],
+    }]}
+
+
+def test_find_head_to_head_returns_event_when_opponent_present() -> None:
+    event = pipeline._find_head_to_head(_schedule_with_h2h(), "41")
+    assert event is not None
+    assert pipeline._derive_game_context(event) == "Elite 8"
+
+
+def test_find_head_to_head_returns_none_when_not_scheduled() -> None:
+    assert pipeline._find_head_to_head(_schedule_with_h2h(), "999") is None
+
+
+def test_scout_builds_context_with_neutral_fallback_when_no_game(monkeypatch) -> None:
+    monkeypatch.setattr(pipeline, "fetch_team", lambda league, tid: _illinois_payload() if tid == "356" else _uconn_payload())
+    monkeypatch.setattr(pipeline, "fetch_schedule", lambda league, tid, season=None: {"events": []})
+
+    emitter = RecordingEmitter()
+    ctx = pipeline._scout(NCAA, MatchupRequest("mens-college-basketball", "356", "41"), emitter)
+
+    assert ctx.team_a.name == "Illinois"
+    assert ctx.team_b.name == "UConn"
+    assert ctx.head_to_head_event is None
+    assert ctx.game_context == "NCAA Men's Basketball Matchup"
+    # With no head-to-head event, ranks fall back to each team's standalone curated rank (spec §2.3)
+    assert ctx.team_a.rank == 8
+    assert ctx.team_b.rank == 5
+
+
+def test_run_emits_done_when_scout_fails(monkeypatch) -> None:
+    def boom(league, tid):
+        raise RuntimeError("espn down")
+
+    monkeypatch.setattr(pipeline, "fetch_team", boom)
     emitter = RecordingEmitter()
 
-    def fail_fetch_team(team_id: str):
-        raise RuntimeError('espn unavailable')
+    pipeline.run(MatchupRequest("mens-college-basketball", "356", "41"), emitter)
 
-    monkeypatch.setattr(pipeline, 'fetch_team', fail_fetch_team)
-
-    pipeline.run('Analyze Illinois vs UConn', emitter)
-
-    assert emitter.events[0]['type'] == 'agent_thought'
-    assert any(event['type'] == 'agent_thought' and event['agent'] == 'scout' and 'Scout error' in event['content'] for event in emitter.events)
-    assert any(event['type'] == 'agent_thought' and event['agent'] == 'narrator' and 'Skipping narrator' in event['content'] for event in emitter.events)
-    assert emitter.events[-1] == {'type': 'done'}
+    assert any(e["type"] == "agent_thought" and "Scout error" in e["content"] for e in emitter.events)
+    assert emitter.events[-1] == {"type": "done"}
 
 
-def test_pipeline_runs_narrator_after_successful_scout_and_analyst(monkeypatch) -> None:
+def test_run_calls_narrator_with_team_names(monkeypatch) -> None:
+    monkeypatch.setattr(pipeline, "fetch_team", lambda league, tid: _illinois_payload() if tid == "356" else _uconn_payload())
+    monkeypatch.setattr(pipeline, "fetch_schedule", lambda league, tid, season=None: _schedule_with_h2h())
+    monkeypatch.setattr(pipeline, "converse_text", lambda prompt, max_tokens=1024: "summary")
+
+    captured = {}
+
+    def fake_run_narrator(scout_summary, analyst_summary, emit, team_header, stat_table, team_a_name, team_b_name):
+        captured["names"] = (team_a_name, team_b_name)
+        captured["header_keys"] = set(team_header)
+        emit({"type": "prediction", "content": "Illinois 78-74"})
+
+    monkeypatch.setattr(pipeline, "run_narrator", fake_run_narrator)
     emitter = RecordingEmitter()
 
-    def fake_fetch_team(team_id: str):
-        if team_id == '356':
-            return {
-                'team': {
-                    'displayName': 'Illinois',
-                    'shortDisplayName': 'Illinois',
-                    'name': 'Fighting Illini',
-                },
-                'nextEvent': [
-                    {
-                        'competitions': [
-                            {
-                                'competitors': [
-                                    {'team': {'id': '356'}, 'curatedRank': {'current': 3}},
-                                ]
-                            }
-                        ]
-                    }
-                ],
-            }
-        if team_id == '41':
-            return {
-                'team': {
-                    'displayName': 'UConn Huskies',
-                    'shortDisplayName': 'UConn',
-                    'name': 'Huskies',
-                    'location': 'Connecticut',
-                }
-            }
-        return {
-            'team': {'displayName': 'Opponent'},
-        }
+    pipeline.run(MatchupRequest("mens-college-basketball", "356", "41"), emitter)
 
-    monkeypatch.setattr(pipeline, 'fetch_team', fake_fetch_team)
-    monkeypatch.setattr(
-        pipeline,
-        'fetch_schedule',
-        lambda team_id, season=None: {
-            'events': [
-                {
-                    'name': 'Illinois vs UConn',
-                    'season': {'year': 2024},
-                    'competitions': [
-                        {
-                            'notes': [{'headline': "Men's Basketball Championship - East Region - Elite 8"}],
-                            'competitors': [
-                                {'team': {'id': '356', 'shortDisplayName': 'Illinois', 'name': 'Fighting Illini'}, 'curatedRank': {'current': 3}},
-                                {'team': {'id': '41', 'shortDisplayName': 'UConn', 'name': 'Huskies'}, 'curatedRank': {'current': 2}},
-                            ],
-                        }
-                    ],
-                }
-            ]
-        },
-    )
-    monkeypatch.setattr(pipeline, 'fetch_scoreboard', lambda: {'events': [1]})
-
-    def fake_converse_text(prompt: str, max_tokens: int = 1024) -> str:
-        if 'Scout summary:' in prompt:
-            return 'Analyst sees Illinois spacing advantage.'
-        return 'Scout summary for Illinois.'
-
-    narrator_calls = []
-
-    def fake_run_narrator(goal: str, scout_summary: str, analyst_summary: str, emit, team_header=None, stat_comparison_table=None):
-        narrator_calls.append((goal, scout_summary, analyst_summary, team_header))
-        emit({'type': 'prediction', 'content': 'Illinois 78-74'})
-
-    monkeypatch.setattr(pipeline, 'converse_text', fake_converse_text)
-    monkeypatch.setattr(pipeline, 'run_narrator', fake_run_narrator)
-
-    pipeline.run('Analyze Illinois vs UConn', emitter)
-
-    assert narrator_calls == [
-        (
-            'Analyze Illinois vs UConn',
-            'Scout summary for Illinois.',
-            'Analyst sees Illinois spacing advantage.',
-            {
-                'illinois_rank': 3,
-                'illinois_name': 'Illinois',
-                'illinois_mascot': 'Fighting Illini',
-                'illinois_color': None,
-                'opponent_name': 'UConn',
-                'opponent_mascot': 'Huskies',
-                'opponent_rank': 2,
-                'opponent_color': None,
-                'game_context': 'Elite 8',
-            },
-        )
-    ]
-    assert any(event['type'] == 'tool_call' and event['tool'] == 'fetch_scoreboard' for event in emitter.events)
-    assert any(event['type'] == 'prediction' for event in emitter.events)
-    assert emitter.events[-1] == {'type': 'done'}
-
-
-def test_extract_ap_rank_prefers_curated_rank_over_top_level_rank() -> None:
-    payload = {
-        'rank': 13,
-        'nextEvent': [
-            {
-                'competitions': [
-                    {
-                        'competitors': [
-                            {'team': {'id': '356'}, 'curatedRank': {'current': 3}},
-                        ]
-                    }
-                ]
-            }
-        ],
-    }
-
-    assert pipeline._extract_ap_rank(payload, '356') == 3
-
-
-def test_extract_ap_rank_falls_back_to_top_level_rank() -> None:
-    payload = {'rank': 7}
-
-    assert pipeline._extract_ap_rank(payload, '41') == 7
-
-
-def test_extract_ap_rank_handles_nested_team_rank_strings() -> None:
-    payload = {
-        'team': {'rank': '#13'},
-        'nextEvent': [],
-    }
-
-    assert pipeline._extract_ap_rank(payload, '356') == 13
-
-
-def test_build_team_header_uses_structured_espn_data() -> None:
-    illinois = {
-        'team': {
-            'displayName': 'Illinois',
-            'shortDisplayName': 'Illinois',
-            'name': 'Fighting Illini',
-        },
-        'nextEvent': [
-            {
-                'competitions': [
-                    {
-                        'competitors': [
-                            {'team': {'id': '356'}, 'curatedRank': {'current': 3}},
-                        ]
-                    }
-                ]
-            }
-        ],
-    }
-    opponent = {
-        'team': {
-            'displayName': 'UConn Huskies',
-            'shortDisplayName': 'UConn',
-            'name': 'Huskies',
-            'location': 'Connecticut',
-        },
-        'nextEvent': [
-            {
-                'competitions': [
-                    {
-                        'competitors': [
-                            {'team': {'id': '41'}, 'curatedRank': {'current': 2}},
-                        ]
-                    }
-                ]
-            }
-        ],
-    }
-
-    assert pipeline._build_team_header(illinois, opponent) == {
-        'illinois_rank': 3,
-        'illinois_name': 'Illinois',
-        'illinois_mascot': 'Fighting Illini',
-        'illinois_color': None,
-        'opponent_name': 'UConn',
-        'opponent_mascot': 'Huskies',
-        'opponent_rank': 2,
-        'opponent_color': None,
-        'game_context': None,
-    }
-
-
-def test_build_team_header_uses_matchup_event_context_and_opponent() -> None:
-    matchup_event = {
-        'competitions': [
-            {
-                'notes': [{'headline': "Men's Basketball Championship - East Region - Elite 8"}],
-                'competitors': [
-                    {'team': {'id': '356', 'shortDisplayName': 'Illinois', 'name': 'Fighting Illini'}, 'curatedRank': {'current': 3}},
-                    {'team': {'id': '41', 'shortDisplayName': 'UConn', 'name': 'Huskies'}, 'curatedRank': {'current': 2}},
-                ],
-            }
-        ]
-    }
-
-    assert pipeline._build_team_header({'team': {}}, {'team': {}}, matchup_event) == {
-        'illinois_rank': 3,
-        'illinois_name': 'Illinois',
-        'illinois_mascot': 'Fighting Illini',
-        'illinois_color': None,
-        'opponent_name': 'UConn',
-        'opponent_mascot': 'Huskies',
-        'opponent_rank': 2,
-        'opponent_color': None,
-        'game_context': 'Elite 8',
-    }
+    assert captured["names"] == ("Illinois", "UConn")
+    assert "team_a_name" in captured["header_keys"]
+    assert emitter.events[-1] == {"type": "done"}
